@@ -5,10 +5,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "备婚规划",
-    template: "%s | 备婚规划",
+    default: "一席 · 备婚手帐",
+    template: "%s | 一席",
   },
-  description: "个人备婚规划与方案对比工具",
+  description: "把婚礼的每一种可能，认真放在一起比较。",
 };
 
 type RootLayoutProps = Readonly<{
@@ -17,7 +17,7 @@ type RootLayoutProps = Readonly<{
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <body>{children}</body>
     </html>
   );

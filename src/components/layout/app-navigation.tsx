@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   Columns3,
   ContactRound,
-  LayoutDashboard,
+  House,
   ListTree,
   UsersRound,
   type LucideIcon,
@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigationIcons: Record<NavigationItem["icon"], LucideIcon> = {
-  "layout-dashboard": LayoutDashboard,
+  "layout-dashboard": House,
   "list-tree": ListTree,
   "columns-3": Columns3,
   "contact-round": ContactRound,
@@ -50,13 +50,19 @@ export function AppNavigation({ orientation }: AppNavigationProps) {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-medium transition-colors",
+              "group relative flex h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-[13px] font-medium transition-all duration-300",
               isActive
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                ? "bg-primary/[.08] text-primary"
+                : "text-muted-foreground hover:bg-sidebar-accent/80 hover:text-foreground",
             )}
           >
-            <Icon aria-hidden="true" className="size-4" />
+            {isActive && orientation === "vertical" ? (
+              <span className="bg-primary absolute -left-4 h-5 w-0.5 rounded-r-full" />
+            ) : null}
+            <Icon
+              aria-hidden="true"
+              className="size-[17px] transition-transform duration-300 group-hover:scale-105"
+            />
             {item.label}
           </Link>
         );

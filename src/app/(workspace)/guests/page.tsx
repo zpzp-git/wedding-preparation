@@ -1,9 +1,176 @@
 import type { Metadata } from "next";
+import {
+  Check,
+  ChevronDown,
+  Download,
+  MoreHorizontal,
+  Plus,
+  Search,
+  UsersRound,
+} from "lucide-react";
 
-import { ModulePlaceholder } from "@/components/shared/module-placeholder";
+import { PageHeading } from "@/components/shared/page-heading";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = { title: "宾客" };
 
 export default function GuestsPage() {
-  return <ModulePlaceholder title="宾客" />;
+  const guests = [
+    {
+      name: "陈屿 & 林夏",
+      side: "男方",
+      relation: "大学同学",
+      people: 2,
+      status: "已确认",
+      note: "不吃香菜",
+    },
+    {
+      name: "周阿姨一家",
+      side: "女方",
+      relation: "亲友",
+      people: 3,
+      status: "已确认",
+      note: "需要儿童座椅",
+    },
+    {
+      name: "赵一川",
+      side: "男方",
+      relation: "同事",
+      people: 1,
+      status: "待确认",
+      note: "—",
+    },
+    {
+      name: "宋知意 & 顾言",
+      side: "女方",
+      relation: "高中同学",
+      people: 2,
+      status: "已确认",
+      note: "素食 1 位",
+    },
+    {
+      name: "刘叔叔一家",
+      side: "男方",
+      relation: "亲友",
+      people: 4,
+      status: "待确认",
+      note: "可能需要住宿",
+    },
+  ];
+
+  return (
+    <div className="mx-auto max-w-[1380px] pb-16">
+      <PageHeading
+        eyebrow="Guest list · 126 expected"
+        title="想邀请的人，正在慢慢到齐。"
+        description="第一版只保留必要信息：人数、归属和确认状态，让这件事保持简单。"
+        action={
+          <div className="flex gap-2">
+            <Button variant="outline" size="lg">
+              <Download />
+              导出
+            </Button>
+            <Button size="lg">
+              <Plus />
+              添加宾客
+            </Button>
+          </div>
+        }
+      />
+      <section className="mb-5 grid gap-4 sm:grid-cols-3">
+        {[
+          {
+            label: "预计宾客",
+            value: "126",
+            note: "共 68 组",
+            color: "bg-primary",
+          },
+          {
+            label: "已经确认",
+            value: "92",
+            note: "73% 已确认",
+            color: "bg-[#9B8AFB]",
+          },
+          {
+            label: "等待回复",
+            value: "34",
+            note: "建议本周询问",
+            color: "bg-[#FFB07C]",
+          },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="bg-card border-border/70 rounded-[24px] border p-5"
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-muted-foreground text-[10px] tracking-[0.14em] uppercase">
+                {item.label}
+              </p>
+              <i className={`size-1.5 rounded-full ${item.color}`} />
+            </div>
+            <p className="font-editorial mt-4 text-3xl">
+              {item.value}
+              <span className="text-muted-foreground ml-1 text-xs">人</span>
+            </p>
+            <p className="text-muted-foreground mt-1 text-[10px]">
+              {item.note}
+            </p>
+          </div>
+        ))}
+      </section>
+      <section className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
+        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="bg-muted/65 flex max-w-sm flex-1 items-center gap-2 rounded-full px-4 py-2.5">
+            <Search className="text-muted-foreground size-4" />
+            <input
+              placeholder="搜索宾客"
+              className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+            />
+          </div>
+          <button className="text-muted-foreground flex items-center gap-2 self-start rounded-full border px-4 py-2 text-[11px] sm:self-auto">
+            全部归属 <ChevronDown className="size-3.5" />
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <div className="text-muted-foreground grid min-w-[760px] grid-cols-[1.4fr_.7fr_1fr_.5fr_.8fr_1.1fr_30px] gap-4 border-b px-6 py-3 text-[9px] tracking-[0.14em] uppercase">
+            <span>宾客</span>
+            <span>归属</span>
+            <span>关系</span>
+            <span>人数</span>
+            <span>状态</span>
+            <span>备注</span>
+            <span />
+          </div>
+          {guests.map((guest) => (
+            <div
+              key={guest.name}
+              className="hover:bg-muted/35 grid min-w-[760px] grid-cols-[1.4fr_.7fr_1fr_.5fr_.8fr_1.1fr_30px] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
+            >
+              <span className="flex items-center gap-3">
+                <i className="bg-secondary text-secondary-foreground grid size-8 place-items-center rounded-full not-italic">
+                  <UsersRound className="size-3.5" />
+                </i>
+                <strong className="font-medium">{guest.name}</strong>
+              </span>
+              <span className="text-muted-foreground">{guest.side}</span>
+              <span className="text-muted-foreground">{guest.relation}</span>
+              <span className="font-editorial text-sm">{guest.people}</span>
+              <span>
+                <i
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] not-italic ${guest.status === "已确认" ? "bg-[#9B8AFB]/10 text-[#7566D8]" : "bg-[#FFB07C]/15 text-[#C56C39]"}`}
+                >
+                  {guest.status === "已确认" ? (
+                    <Check className="size-3" />
+                  ) : null}
+                  {guest.status}
+                </i>
+              </span>
+              <span className="text-muted-foreground">{guest.note}</span>
+              <MoreHorizontal className="text-muted-foreground size-4" />
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
 }

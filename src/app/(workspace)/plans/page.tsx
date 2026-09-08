@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
-import { ModulePlaceholder } from "@/components/shared/module-placeholder";
+import { PlanComparison } from "@/components/plans/plan-comparison";
 
 export const metadata: Metadata = { title: "整体方案" };
 
 export default function PlansPage() {
-  return <ModulePlaceholder title="整体方案" />;
+  return <PlanComparison />;
 }
