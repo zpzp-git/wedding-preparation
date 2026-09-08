@@ -1,0 +1,7 @@
+.next
+coverage
+node_modules
+package-lock.json
+src/db/migrations
+技术架构文档.md
+项目需求文档.md

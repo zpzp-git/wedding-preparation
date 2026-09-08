@@ -1,0 +1,9 @@
+.git
+.next
+coverage
+data
+node_modules
+npm-debug.log*
+.env*
+技术架构文档.md
+项目需求文档.md

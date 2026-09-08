@@ -1,0 +1,14 @@
+services:
+  app:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_PATH: /app/data/wedding.db
+    volumes:
+      - wedding_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  wedding_data:
