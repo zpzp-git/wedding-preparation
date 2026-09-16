@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import {
+  BedDouble,
   Check,
   ChevronDown,
   Download,
+  Gift,
   MoreHorizontal,
   Plus,
   Search,
@@ -22,6 +24,8 @@ export default function GuestsPage() {
       relation: "大学同学",
       people: 2,
       status: "已确认",
+      hasGift: true,
+      needsAccommodation: false,
       note: "不吃香菜",
     },
     {
@@ -30,6 +34,8 @@ export default function GuestsPage() {
       relation: "亲友",
       people: 3,
       status: "已确认",
+      hasGift: true,
+      needsAccommodation: true,
       note: "需要儿童座椅",
     },
     {
@@ -38,6 +44,8 @@ export default function GuestsPage() {
       relation: "同事",
       people: 1,
       status: "待确认",
+      hasGift: false,
+      needsAccommodation: false,
       note: "—",
     },
     {
@@ -46,6 +54,8 @@ export default function GuestsPage() {
       relation: "高中同学",
       people: 2,
       status: "已确认",
+      hasGift: true,
+      needsAccommodation: true,
       note: "素食 1 位",
     },
     {
@@ -54,6 +64,8 @@ export default function GuestsPage() {
       relation: "亲友",
       people: 4,
       status: "待确认",
+      hasGift: false,
+      needsAccommodation: true,
       note: "可能需要住宿",
     },
   ];
@@ -63,7 +75,7 @@ export default function GuestsPage() {
       <PageHeading
         eyebrow="Guest list · 126 expected"
         title="想邀请的人，正在慢慢到齐。"
-        description="第一版只保留必要信息：人数、归属和确认状态，让这件事保持简单。"
+        description="把人数、归属、确认状态与礼金住宿安排放在一起，每一份心意都妥帖记下。"
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="lg">
@@ -132,19 +144,21 @@ export default function GuestsPage() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <div className="text-muted-foreground grid min-w-[760px] grid-cols-[1.4fr_.7fr_1fr_.5fr_.8fr_1.1fr_30px] gap-4 border-b px-6 py-3 text-[9px] tracking-[0.14em] uppercase">
+          <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr_30px] gap-4 border-b px-6 py-3 text-[9px] tracking-[0.14em] uppercase">
             <span>宾客</span>
             <span>归属</span>
             <span>关系</span>
             <span>人数</span>
             <span>状态</span>
+            <span>是否有礼</span>
+            <span>是否住宿</span>
             <span>备注</span>
             <span />
           </div>
           {guests.map((guest) => (
             <div
               key={guest.name}
-              className="hover:bg-muted/35 grid min-w-[760px] grid-cols-[1.4fr_.7fr_1fr_.5fr_.8fr_1.1fr_30px] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
+              className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr_30px] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
             >
               <span className="flex items-center gap-3">
                 <i className="bg-secondary text-secondary-foreground grid size-8 place-items-center rounded-full not-italic">
@@ -163,6 +177,24 @@ export default function GuestsPage() {
                     <Check className="size-3" />
                   ) : null}
                   {guest.status}
+                </i>
+              </span>
+              <span>
+                <i
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] not-italic ${guest.hasGift ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                >
+                  {guest.hasGift ? <Gift className="size-3" /> : null}
+                  {guest.hasGift ? "有礼" : "无礼"}
+                </i>
+              </span>
+              <span>
+                <i
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] not-italic ${guest.needsAccommodation ? "bg-[#6F9CE8]/10 text-[#537FC8]" : "bg-muted text-muted-foreground"}`}
+                >
+                  {guest.needsAccommodation ? (
+                    <BedDouble className="size-3" />
+                  ) : null}
+                  {guest.needsAccommodation ? "住宿" : "不住宿"}
                 </i>
               </span>
               <span className="text-muted-foreground">{guest.note}</span>
