@@ -5,7 +5,6 @@ import {
   ChevronDown,
   Download,
   Gift,
-  MoreHorizontal,
   Plus,
   Search,
   UsersRound,
@@ -69,13 +68,21 @@ export default function GuestsPage() {
       note: "可能需要住宿",
     },
   ];
+  const expectedCount = guests.reduce(
+    (total, guest) => total + guest.people,
+    0,
+  );
+  const confirmedCount = guests
+    .filter((guest) => guest.status === "已确认")
+    .reduce((total, guest) => total + guest.people, 0);
+  const pendingCount = expectedCount - confirmedCount;
 
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
       <PageHeading
-        eyebrow="Guest list · 126 expected"
-        title="想邀请的人，正在慢慢到齐。"
-        description="把人数、归属、确认状态与礼金住宿安排放在一起，每一份心意都妥帖记下。"
+        eyebrow={`已录入 ${guests.length} 组 · ${expectedCount} 人`}
+        title="宾客名单"
+        description="查看到场确认、随礼和住宿需求，方便安排座位与接待。"
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="lg">
@@ -93,20 +100,20 @@ export default function GuestsPage() {
         {[
           {
             label: "预计宾客",
-            value: "126",
-            note: "共 68 组",
+            value: expectedCount,
+            note: `共 ${guests.length} 组`,
             color: "bg-primary",
           },
           {
             label: "已经确认",
-            value: "92",
-            note: "73% 已确认",
+            value: confirmedCount,
+            note: `${Math.round((confirmedCount / expectedCount) * 100)}% 已确认`,
             color: "bg-[#9B8AFB]",
           },
           {
             label: "等待回复",
-            value: "34",
-            note: "建议本周询问",
+            value: pendingCount,
+            note: "涉及待回复的宾客",
             color: "bg-[#FFB07C]",
           },
         ].map((item) => (
@@ -115,9 +122,7 @@ export default function GuestsPage() {
             className="bg-card border-border/70 rounded-[24px] border p-5"
           >
             <div className="flex items-center justify-between">
-              <p className="text-muted-foreground text-[10px] tracking-[0.14em] uppercase">
-                {item.label}
-              </p>
+              <p className="text-muted-foreground text-[11px]">{item.label}</p>
               <i className={`size-1.5 rounded-full ${item.color}`} />
             </div>
             <p className="font-editorial mt-4 text-3xl">
@@ -144,7 +149,7 @@ export default function GuestsPage() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr_30px] gap-4 border-b px-6 py-3 text-[9px] tracking-[0.14em] uppercase">
+          <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] gap-4 border-b px-6 py-3 text-[10px]">
             <span>宾客</span>
             <span>归属</span>
             <span>关系</span>
@@ -153,12 +158,11 @@ export default function GuestsPage() {
             <span>是否有礼</span>
             <span>是否住宿</span>
             <span>备注</span>
-            <span />
           </div>
           {guests.map((guest) => (
             <div
               key={guest.name}
-              className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr_30px] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
+              className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
             >
               <span className="flex items-center gap-3">
                 <i className="bg-secondary text-secondary-foreground grid size-8 place-items-center rounded-full not-italic">
@@ -198,7 +202,6 @@ export default function GuestsPage() {
                 </i>
               </span>
               <span className="text-muted-foreground">{guest.note}</span>
-              <MoreHorizontal className="text-muted-foreground size-4" />
             </div>
           ))}
         </div>

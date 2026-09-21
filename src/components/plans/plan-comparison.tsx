@@ -38,35 +38,30 @@ type Selection = {
 type Category = {
   id: string;
   name: string;
-  eyebrow: string;
   icon: LucideIcon;
   description: string;
   selections: Record<SavedPlanId, Selection>;
 };
 
-const plans: { id: PlanId; name: string; subtitle: string; color: string }[] = [
+const plans: { id: PlanId; name: string; color: string }[] = [
   {
     id: "balanced",
     name: "松弛平衡",
-    subtitle: "我们的当前选择",
     color: "#F27C8D",
   },
   {
     id: "quality",
     name: "质感优先",
-    subtitle: "保留每一个心动项",
     color: "#9B8AFB",
   },
   {
     id: "saving",
     name: "轻盈控制",
-    subtitle: "把预算留给蜜月",
     color: "#FFB07C",
   },
   {
     id: "draft",
     name: "松弛平衡 · 副本",
-    subtitle: "刚刚另存的新方案",
     color: "#8FD6C2",
   },
 ];
@@ -75,9 +70,8 @@ const categories: Category[] = [
   {
     id: "venue",
     name: "婚宴酒店",
-    eyebrow: "THE VENUE",
     icon: Building2,
-    description: "场地与婚宴决定了整场婚礼最基础的空间气质。",
+    description: "确认场地、餐标与宾客容纳人数。",
     selections: {
       balanced: { name: "衡山礼堂 · 梧桐厅", price: 88000, confirmed: true },
       quality: { name: "衡山礼堂 · 梧桐厅", price: 88000, confirmed: true },
@@ -87,9 +81,8 @@ const categories: Category[] = [
   {
     id: "planning",
     name: "婚礼策划",
-    eyebrow: "THE STORY",
     icon: Sparkles,
-    description: "从主题、花艺到灯光，让喜欢的画面真正落地。",
+    description: "记录布置、花艺和灯光的服务范围。",
     selections: {
       balanced: { name: "白屿 · 山野来信", price: 26800, confirmed: true },
       quality: { name: "白屿 · 全案定制", price: 33800, confirmed: true },
@@ -99,9 +92,8 @@ const categories: Category[] = [
   {
     id: "photo",
     name: "婚礼摄影",
-    eyebrow: "THE MOMENT",
     icon: Camera,
-    description: "记录那些没有被安排、却最值得留下来的瞬间。",
+    description: "比较机位、拍摄时长与精修交付内容。",
     selections: {
       balanced: { name: "东奇 · 双机纪实", price: 6800, confirmed: true },
       quality: { name: "之间 · 双机胶片", price: 9800, confirmed: true },
@@ -111,9 +103,8 @@ const categories: Category[] = [
   {
     id: "film",
     name: "婚礼摄像",
-    eyebrow: "THE FILM",
     icon: Video,
-    description: "用动态影像把声音、拥抱和当天的情绪一起保存。",
+    description: "确认摄像机位、成片内容与交付时间。",
     selections: {
       balanced: { name: "Half Film · 双机", price: 7200, confirmed: false },
       quality: { name: "Half Film · 三机", price: 9800, confirmed: true },
@@ -123,9 +114,8 @@ const categories: Category[] = [
   {
     id: "dress",
     name: "婚纱礼服",
-    eyebrow: "THE LOOK",
     icon: Shirt,
-    description: "主纱、敬酒服与西装，共同组成婚礼当天的造型。",
+    description: "核对主纱、敬酒服和西装的套数与档期。",
     selections: {
       balanced: { name: "MUSE · 一主两副", price: 12800, confirmed: true },
       quality: { name: "MUSE · 高定系列", price: 16800, confirmed: true },
@@ -135,9 +125,8 @@ const categories: Category[] = [
   {
     id: "host",
     name: "主持与化妆",
-    eyebrow: "THE PEOPLE",
     icon: Mic2,
-    description: "陪伴整天的重要角色，需要专业，也需要彼此合拍。",
+    description: "确认主持与化妆的服务内容和时间。",
     selections: {
       balanced: { name: "言川 + 林汐", price: 9800, confirmed: true },
       quality: { name: "言川 + 林汐", price: 9800, confirmed: true },
@@ -147,9 +136,8 @@ const categories: Category[] = [
   {
     id: "car",
     name: "婚车与接亲",
-    eyebrow: "THE JOURNEY",
     icon: Car,
-    description: "从出发到抵达，让婚礼当天的每段路都衔接顺畅。",
+    description: "对比主婚车、车队数量与接亲路线。",
     selections: {
       balanced: { name: "复古主车 + 5 辆车队", price: 11800, confirmed: false },
       quality: { name: "复古主车 + 7 辆车队", price: 12400, confirmed: false },
@@ -159,9 +147,8 @@ const categories: Category[] = [
   {
     id: "gift",
     name: "喜糖与物料",
-    eyebrow: "THE DETAILS",
     icon: Gift,
-    description: "请柬、喜糖和桌面纸品，是散落在婚礼里的小心意。",
+    description: "核对请柬、喜糖和纸品的数量与单价。",
     selections: {
       balanced: { name: "定制纸品三件套", price: 5400, confirmed: true },
       quality: { name: "手工纸品全套", price: 6400, confirmed: true },
@@ -257,9 +244,9 @@ export function PlanComparison() {
     return (
       <div className="mx-auto max-w-[1380px] pb-16">
         <PageHeading
-          eyebrow="Plan comparison · 02 versions"
-          title="两套方案，安静地看清差别。"
-          description="这里只保留真正发生变化的选择，让取舍一眼就能看明白。"
+          eyebrow="2 套方案 · 逐项对比"
+          title="方案对比"
+          description="查看每个婚礼环节的选择和费用差异。"
           action={
             <Button
               variant="outline"
@@ -326,10 +313,10 @@ export function PlanComparison() {
         <section className="mt-8">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <p className="text-muted-foreground text-[10px] tracking-[0.2em] uppercase">
-                Item by item
+              <p className="text-muted-foreground text-[11px]">
+                {visibleCategories.length} 个环节
               </p>
-              <h2 className="font-editorial mt-1 text-2xl">差异从哪里来</h2>
+              <h2 className="font-editorial mt-1 text-2xl">差异明细</h2>
             </div>
             <button
               type="button"
@@ -412,9 +399,9 @@ export function PlanComparison() {
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
       <PageHeading
-        eyebrow="Whole wedding · luminous journey"
-        title="让整场婚礼，沿着光慢慢成形。"
-        description="每一个亮起的节点，都是已经认真做好的决定；还未确定的部分，也在安静等待。"
+        eyebrow={`${visiblePlans.length} 套方案 · ${categories.length} 个环节`}
+        title="婚礼方案"
+        description="在同一张清单里调整选择与预算，并比较不同方案的费用。"
         action={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="lg" onClick={duplicateCurrentPlan}>
@@ -437,17 +424,15 @@ export function PlanComparison() {
         }
       />
 
-      <section className="paper-grain relative overflow-hidden rounded-[36px] bg-[#25232B] text-white shadow-[0_30px_90px_rgba(59,48,82,.22)]">
-        <div className="absolute -top-40 -left-24 size-[420px] rounded-full bg-[#F27C8D]/15 blur-[90px]" />
-        <div className="absolute -right-20 -bottom-52 size-[480px] rounded-full bg-[#9B8AFB]/20 blur-[100px]" />
-        <div className="hairline-grid absolute inset-0 opacity-[.08]" />
-        <div className="absolute top-10 left-1/2 h-px w-1/2 -translate-x-1/2 bg-linear-to-r from-transparent via-white/25 to-transparent" />
+      <section className="relative overflow-hidden rounded-[36px] bg-[#302B38] text-white shadow-[0_22px_60px_rgba(59,48,82,.15)]">
+        <div className="absolute -top-40 -left-24 size-[420px] rounded-full bg-[#F27C8D]/10 blur-[90px]" />
+        <div className="absolute -right-20 -bottom-52 size-[480px] rounded-full bg-[#9B8AFB]/12 blur-[100px]" />
 
         <div className="relative z-10 border-b border-white/10 p-5 sm:p-7 lg:px-9">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="block min-w-[260px] rounded-[20px] border border-white/10 bg-white/[.06] p-3.5 backdrop-blur-xl">
-                <span className="mb-1.5 block text-[9px] tracking-[0.2em] text-white/40 uppercase">
+                <span className="mb-1.5 block text-[10px] text-white/50">
                   当前整体方案
                 </span>
                 <span className="relative flex items-center">
@@ -487,9 +472,7 @@ export function PlanComparison() {
 
             <div className="flex flex-wrap items-end gap-8 sm:gap-12">
               <div>
-                <p className="text-[9px] tracking-[0.2em] text-white/35 uppercase">
-                  预计总预算
-                </p>
+                <p className="text-[10px] text-white/50">预计总预算</p>
                 <motion.p
                   key={`${activePlan}-${totalFor(activePlan)}`}
                   initial={{ opacity: 0, y: 6 }}
@@ -502,12 +485,12 @@ export function PlanComparison() {
               </div>
               <div className="min-w-[170px]">
                 <div className="flex items-end justify-between">
-                  <p className="text-[9px] tracking-[0.2em] text-white/35 uppercase">
-                    已确认环节
-                  </p>
+                  <p className="text-[10px] text-white/50">已确认环节</p>
                   <p className="font-editorial text-lg">
                     {confirmedFor(activePlan)}
-                    <span className="ml-1 text-xs text-white/35">/ 8</span>
+                    <span className="ml-1 text-xs text-white/50">
+                      / {categories.length}
+                    </span>
                   </p>
                 </div>
                 <div className="mt-2 h-1 overflow-hidden rounded-full bg-white/10">
@@ -515,7 +498,7 @@ export function PlanComparison() {
                     animate={{
                       width: `${(confirmedFor(activePlan) / categories.length) * 100}%`,
                     }}
-                    className="from-primary h-full rounded-full bg-linear-to-r to-[#9B8AFB] shadow-[0_0_14px_rgba(242,124,141,.8)]"
+                    className="from-primary h-full rounded-full bg-linear-to-r to-[#9B8AFB]"
                   />
                 </div>
               </div>
@@ -526,16 +509,16 @@ export function PlanComparison() {
         <div className="relative z-10 p-5 sm:p-7 lg:px-9 lg:pb-10">
           <div className="mb-7 flex items-center justify-between">
             <div>
-              <p className="text-[9px] tracking-[0.24em] text-white/35 uppercase">
-                The luminous route
+              <p className="text-[11px] text-white/55">
+                {categories.length} 个环节
               </p>
               <h2 className="font-editorial mt-1.5 text-xl text-white/90">
-                {activePlanData.name} · 婚礼全景
+                {activePlanData.name} · 环节总览
               </h2>
             </div>
             <div className="hidden items-center gap-5 text-[10px] text-white/40 sm:flex">
               <span className="flex items-center gap-2">
-                <i className="from-primary size-2 rounded-full bg-linear-to-br to-[#9B8AFB] shadow-[0_0_10px_#F27C8D]" />
+                <i className="from-primary size-2 rounded-full bg-linear-to-br to-[#9B8AFB]" />
                 已确认
               </span>
               <span className="flex items-center gap-2">
@@ -558,13 +541,6 @@ export function PlanComparison() {
                   <stop offset="48%" stopColor="#9B8AFB" />
                   <stop offset="100%" stopColor="#8FD6C2" />
                 </linearGradient>
-                <filter id="route-glow">
-                  <feGaussianBlur stdDeviation="4" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
               </defs>
               <path
                 d="M165 70 H1035 Q1090 70 1090 125 V235 Q1090 290 1035 290 H165"
@@ -572,17 +548,12 @@ export function PlanComparison() {
                 stroke="rgba(255,255,255,.11)"
                 strokeWidth="2"
               />
-              <motion.path
+              <path
                 d="M165 70 H1035 Q1090 70 1090 125 V235 Q1090 290 1035 290 H165"
                 fill="none"
                 stroke="url(#route-gradient)"
                 strokeWidth="2"
-                strokeDasharray="8 28"
-                filter="url(#route-glow)"
-                initial={{ strokeDashoffset: 0 }}
-                animate={{ strokeDashoffset: -72 }}
-                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-                opacity=".7"
+                opacity=".55"
               />
             </svg>
 
@@ -632,7 +603,7 @@ export function PlanComparison() {
                     className={cn(
                       "relative z-10 grid size-9 shrink-0 place-items-center rounded-full border",
                       selection.confirmed
-                        ? "border-white/50 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB] shadow-[0_0_22px_rgba(155,138,251,.65)]"
+                        ? "border-white/50 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB]"
                         : "border-white/15 bg-[#302E38] text-white/30",
                     )}
                   >
@@ -670,8 +641,12 @@ export function PlanComparison() {
               <selectedCategory.icon className="size-5" />
             </span>
             <div>
-              <p className="text-muted-foreground text-[9px] tracking-[0.18em] uppercase">
-                {selectedCategory.eyebrow}
+              <p className="text-muted-foreground text-[11px]">
+                婚礼环节 ·{" "}
+                {categories.findIndex(
+                  (item) => item.id === selectedCategory.id,
+                ) + 1}{" "}
+                / {categories.length}
               </p>
               <h3 className="font-editorial mt-1 text-2xl">
                 {selectedCategory.name}
@@ -775,19 +750,11 @@ function ChainNode({
         className={cn(
           "relative grid size-[70px] place-items-center rounded-full border transition-all duration-500",
           selection.confirmed
-            ? "border-white/55 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB] text-white shadow-[0_0_18px_rgba(242,124,141,.55),0_0_46px_rgba(155,138,251,.38)]"
-            : "border-white/15 bg-[#302E38] text-white/28 shadow-[inset_0_0_22px_rgba(255,255,255,.025)]",
-          active &&
-            "shadow-[0_0_24px_rgba(242,124,141,.75),0_0_68px_rgba(155,138,251,.48)] ring-1 ring-white/70 ring-offset-8 ring-offset-[#25232B]",
+            ? "border-white/55 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB] text-white shadow-[0_8px_20px_rgba(155,138,251,.2)]"
+            : "border-white/15 bg-[#302E38] text-white/40",
+          active && "ring-1 ring-white/70 ring-offset-4 ring-offset-[#302B38]",
         )}
       >
-        {selection.confirmed ? (
-          <motion.i
-            animate={{ scale: [1, 1.13, 1], opacity: [0.45, 0.8, 0.45] }}
-            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute inset-[-10px] rounded-full border border-[#F7B4BE]/35"
-          />
-        ) : null}
         <Icon className="relative z-10 size-5" />
         <i className="absolute -top-1 -right-1 grid size-5 place-items-center rounded-full border border-white/15 bg-[#25232B] text-[8px] text-white/45 not-italic">
           0{number}

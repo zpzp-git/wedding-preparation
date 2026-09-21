@@ -5,10 +5,10 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "一席 · 备婚手帐",
-    template: "%s | 一席",
+    default: "婚礼计划",
+    template: "%s | 婚礼计划",
   },
-  description: "把婚礼的每一种可能，认真放在一起比较。",
+  description: "管理婚礼项目、方案、资源和宾客安排。",
 };
 
 type RootLayoutProps = Readonly<{

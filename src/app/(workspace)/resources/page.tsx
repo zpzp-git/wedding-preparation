@@ -4,7 +4,6 @@ import {
   Camera,
   MapPin,
   Mic2,
-  MoreHorizontal,
   Phone,
   Plus,
   Search,
@@ -67,7 +66,7 @@ export default function ResourcesPage() {
       address: "徐汇区武康路",
       icon: Shirt,
       rating: "4.8",
-      note: "09.15 二次试纱",
+      note: "二次试纱待安排",
       tone: "rose",
     },
     {
@@ -85,9 +84,9 @@ export default function ResourcesPage() {
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
       <PageHeading
-        eyebrow="Our little black book · 18 contacts"
-        title="遇见过的好选择，都放在这里。"
-        description="商家、场地和独立服务者只记录一次，在不同候选方案里自由引用。"
+        eyebrow={`已记录 ${resources.length} 家商家`}
+        title="资源库"
+        description="集中查看商家的联系方式、地点和沟通进展。"
         action={
           <Button size="lg">
             <Plus />
@@ -104,7 +103,7 @@ export default function ResourcesPage() {
           />
         </div>
         <div className="flex scrollbar-none gap-2 overflow-x-auto">
-          {["全部 18", "婚宴 3", "策划 4", "影像 5", "造型 3"].map(
+          {["全部 6", "婚宴 1", "策划 1", "影像 2", "造型 1", "主持 1"].map(
             (item, index) => (
               <button
                 key={item}
@@ -135,10 +134,9 @@ export default function ResourcesPage() {
                     <Star className="size-3 fill-[#FFB07C] text-[#FFB07C]" />
                     {resource.rating}
                   </span>
-                  <MoreHorizontal className="text-muted-foreground size-4" />
                 </div>
               </div>
-              <p className="text-muted-foreground mt-6 text-[9px] tracking-[0.16em] uppercase">
+              <p className="text-muted-foreground mt-6 text-[11px]">
                 {resource.type}
               </p>
               <h2 className="font-editorial mt-1.5 text-xl">{resource.name}</h2>
