@@ -21,78 +21,67 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 
+import { selectOption } from "@/actions/workspace";
 import { PageHeading } from "@/components/shared/page-heading";
+import { useMutation } from "@/components/shared/use-mutation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { PlanData } from "@/server/repositories/workspace";
 
-const categories = [
-  {
-    name: "婚宴与场地",
-    progress: "4 / 5",
-    items: ["婚宴酒店", "婚宴套餐", "酒店住宿", "宾客接送"],
-  },
-  {
-    name: "婚礼策划",
-    progress: "6 / 9",
-    items: ["婚庆公司", "场地布置", "花艺", "灯光音响"],
-  },
-  {
-    name: "四大金刚",
-    progress: "3 / 4",
-    items: ["主持", "摄影", "摄像", "化妆"],
-  },
-  {
-    name: "婚纱礼服",
-    progress: "4 / 8",
-    items: ["新娘主纱", "敬酒服", "新郎西装", "婚鞋"],
-  },
-  {
-    name: "婚车与接亲",
-    progress: "2 / 5",
-    items: ["主婚车", "婚车车队", "接亲用品"],
-  },
-  {
-    name: "喜糖与物料",
-    progress: "4 / 7",
-    items: ["喜糖", "伴手礼", "请柬", "迎宾牌"],
-  },
-];
-
-const options = [
-  {
-    id: "dongqi",
-    name: "东奇 · 双机纪实",
-    vendor: "东奇摄影工作室",
-    price: 6800,
-    tags: ["双机位", "12 小时", "50 张精修"],
-    note: "自然、不摆拍，是我们都喜欢的情绪感。",
-    tone: "coral",
-  },
-  {
-    id: "zhijian",
-    name: "之间 · 双机胶片",
-    vendor: "之间影像",
-    price: 9800,
-    tags: ["数字 + 胶片", "双机位", "当日预告"],
-    note: "质感最好，但预算需要再平衡。",
-    tone: "lavender",
-  },
-  {
-    id: "yuanfang",
-    name: "远方 · 单机轻量",
-    vendor: "远方独立摄影师",
-    price: 4500,
-    tags: ["单机位", "10 小时", "底片全送"],
-    note: "性价比高，晚宴机位会比较紧张。",
-    tone: "peach",
-  },
-];
-
-export function WeddingPlanner() {
-  const [activeItem, setActiveItem] = useState("摄影");
-  const [expanded, setExpanded] = useState(["四大金刚", "婚宴与场地"]);
-  const [selected, setSelected] = useState("dongqi");
+export function WeddingPlanner({
+  data,
+  initialItemId,
+}: {
+  data: PlanData;
+  initialItemId?: number;
+}) {
+  const categories = data.categories.map((category) => {
+    const items = data.items.filter((item) => item.categoryId === category.id);
+    return {
+      id: category.id,
+      name: category.name,
+      progress: `${items.filter((item) => item.status === "confirmed" || item.status === "completed").length} / ${items.length}`,
+      items,
+    };
+  });
+  const [activeItemId, setActiveItemId] = useState(
+    data.items.find((item) => item.id === initialItemId)?.id ??
+      data.items.find((item) => item.name === "摄影")?.id ??
+      data.items[0]?.id ??
+      0,
+  );
+  const [expanded, setExpanded] = useState([
+    ...new Set([
+      ...data.categories.slice(0, 2).map((category) => category.name),
+      data.categories.find(
+        (category) =>
+          category.id ===
+          data.items.find((item) => item.id === initialItemId)?.categoryId,
+      )?.name ?? "四大金刚",
+    ]),
+  ]);
   const [query, setQuery] = useState("");
+  const mutation = useMutation();
+  const activeItem = data.items.find((item) => item.id === activeItemId);
+  const activeCategory = data.categories.find(
+    (category) => category.id === activeItem?.categoryId,
+  );
+  const options = data.options
+    .filter((option) => option.itemId === activeItemId)
+    .map((option, index) => ({
+      ...option,
+      vendor:
+        data.resources.find((resource) => resource.id === option.resourceId)
+          ?.name ?? "未关联商家",
+      price: option.amountCents / 100,
+      tags: option.content
+        .split(/[，,、\n]/)
+        .map((text) => text.trim())
+        .filter(Boolean)
+        .slice(0, 4),
+      tone: ["coral", "lavender", "peach"][index % 3],
+    }));
+  const selected = activeItem?.selectedOptionId;
 
   const toggleCategory = (name: string) =>
     setExpanded((current) =>
@@ -108,12 +97,21 @@ export function WeddingPlanner() {
         title="婚礼项目"
         description="按类别查看准备进度，比较候选方案并记录当前选择。"
         action={
-          <Button size="lg">
+          <Button
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/wedding/manage" />}
+          >
             <Plus />
             添加婚礼项目
           </Button>
         }
       />
+      {mutation.error && (
+        <p role="alert" className="text-primary mb-4 text-xs">
+          {mutation.error}
+        </p>
+      )}
 
       <div className="grid min-h-[720px] gap-4 xl:grid-cols-[330px_minmax(0,1fr)]">
         <aside className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
@@ -133,7 +131,7 @@ export function WeddingPlanner() {
             {categories.map((category) => {
               const open = expanded.includes(category.name) || query.length > 0;
               const visibleItems = category.items.filter((item) =>
-                item.includes(query),
+                item.name.includes(query),
               );
               if (query && visibleItems.length === 0) return null;
               return (
@@ -164,12 +162,12 @@ export function WeddingPlanner() {
                         className="overflow-hidden"
                       >
                         <div className="relative ml-4 border-l py-1 pl-3">
-                          {visibleItems.map((item, index) => {
-                            const active = activeItem === item;
+                          {visibleItems.map((item) => {
+                            const active = activeItemId === item.id;
                             return (
                               <button
-                                key={item}
-                                onClick={() => setActiveItem(item)}
+                                key={item.id}
+                                onClick={() => setActiveItemId(item.id)}
                                 className={cn(
                                   "group relative flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-xs transition-colors",
                                   active
@@ -185,11 +183,10 @@ export function WeddingPlanner() {
                                 ) : null}
                                 <GripVertical className="relative z-10 size-3 opacity-0 transition-opacity group-hover:opacity-50" />
                                 <span className="relative z-10 flex-1">
-                                  {item}
+                                  {item.name}
                                 </span>
-                                {item === "摄影" ||
-                                (index === 0 &&
-                                  category.name === "婚宴与场地") ? (
+                                {item.status === "confirmed" ||
+                                item.status === "completed" ? (
                                   <Check className="relative z-10 size-3.5 text-[#9B8AFB]" />
                                 ) : (
                                   <Circle className="relative z-10 size-2.5 opacity-30" />
@@ -208,7 +205,7 @@ export function WeddingPlanner() {
         </aside>
 
         <main className="min-w-0 space-y-4">
-          {activeItem === "摄影" ? (
+          {activeItem && options.length > 0 ? (
             <>
               <section className="bg-card border-border/70 rounded-[30px] border p-6 sm:p-8">
                 <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
@@ -219,20 +216,28 @@ export function WeddingPlanner() {
                     <div>
                       <div className="mb-2 flex flex-wrap items-center gap-2">
                         <span className="text-muted-foreground text-[11px]">
-                          四大金刚 · 摄影
+                          {activeCategory?.name} · {activeItem.name}
                         </span>
                         <span className="rounded-full bg-[#FFB07C]/15 px-2 py-0.5 text-[9px] text-[#C56C39]">
-                          对比中
+                          {activeItem.status === "confirmed" ||
+                          activeItem.status === "completed"
+                            ? "已确定"
+                            : "对比中"}
                         </span>
                       </div>
-                      <h2 className="font-editorial text-3xl">{activeItem}</h2>
+                      <h2 className="font-editorial text-3xl">
+                        {activeItem.name}
+                      </h2>
                       <p className="text-muted-foreground mt-2 text-xs">
                         {options.length} 个候选方案待比较
                       </p>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button>
+                    <Button
+                      nativeButton={false}
+                      render={<Link href="/wedding/manage" />}
+                    >
                       <Plus />
                       添加候选方案
                     </Button>
@@ -243,10 +248,11 @@ export function WeddingPlanner() {
                   <span className="text-muted-foreground">当前选择</span>
                   <span className="bg-primary/7 text-primary flex items-center gap-1.5 rounded-full px-3 py-1.5">
                     <Check className="size-3" />
-                    {options.find((option) => option.id === selected)?.name}
+                    {options.find((option) => option.id === selected)?.name ??
+                      "尚未选择"}
                   </span>
                   <span className="text-muted-foreground ml-auto">
-                    已纳入「松弛平衡」
+                    {selected ? "已纳入当前方案" : "尚未纳入当前方案"}
                   </span>
                 </div>
               </section>
@@ -259,7 +265,11 @@ export function WeddingPlanner() {
                       key={option.id}
                       layout
                       whileHover={{ y: -5 }}
-                      onClick={() => setSelected(option.id)}
+                      onClick={() =>
+                        mutation.run(() =>
+                          selectOption(activeItem.id, option.id),
+                        )
+                      }
                       className={cn(
                         "bg-card relative min-w-[285px] flex-1 cursor-pointer snap-start overflow-hidden rounded-[28px] border p-5 transition-shadow sm:min-w-[310px] sm:p-6",
                         active
@@ -317,9 +327,16 @@ export function WeddingPlanner() {
                         ))}
                       </div>
                       <p className="text-muted-foreground mt-5 border-t pt-4 text-[11px] leading-5">
-                        “{option.note}”
+                        “{option.note || "暂无备注"}”
                       </p>
                       <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          mutation.run(() =>
+                            selectOption(activeItem.id, option.id),
+                          );
+                        }}
                         className={cn(
                           "mt-5 flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-xs font-medium transition-all",
                           active
@@ -348,20 +365,20 @@ export function WeddingPlanner() {
                 <MiniStat
                   icon={<Building2 />}
                   label="关联资源"
-                  value="3 家"
-                  note="2 家已到店"
+                  value={`${new Set(options.map((option) => option.resourceId).filter(Boolean)).size} 家`}
+                  note="已关联候选商家"
                 />
                 <MiniStat
                   icon={<MessageCircleMore />}
                   label="沟通记录"
-                  value="8 条"
-                  note="最近一次已记录"
+                  value={`${options.filter((option) => option.note).length} 条`}
+                  note="候选方案备注"
                 />
                 <MiniStat
                   icon={<HeartHandshake />}
                   label="我们的偏好"
-                  value="纪实感"
-                  note="自然 · 松弛"
+                  value={activeItem.note || "待记录"}
+                  note="当前项目备注"
                 />
               </section>
             </>
@@ -370,17 +387,19 @@ export function WeddingPlanner() {
               <span className="bg-secondary text-secondary-foreground grid size-12 place-items-center rounded-2xl">
                 <CircleDashed className="size-5" />
               </span>
-              <p className="font-editorial mt-5 text-2xl">{activeItem}</p>
+              <p className="font-editorial mt-5 text-2xl">
+                {activeItem?.name ?? "暂无项目"}
+              </p>
               <p className="text-muted-foreground mt-2 text-sm">
-                暂无详细记录，可以先查看已收集的商家资源。
+                暂无候选方案，可管理项目和预算。
               </p>
               <Button
                 variant="outline"
                 className="mt-6"
                 nativeButton={false}
-                render={<Link href="/resources" />}
+                render={<Link href="/wedding/manage" />}
               >
-                查看资源库 <ArrowRight />
+                管理项目 <ArrowRight />
               </Button>
             </section>
           )}

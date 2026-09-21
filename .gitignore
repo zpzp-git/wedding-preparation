@@ -37,6 +37,7 @@ yarn-error.log*
 # local sqlite data
 /data/*
 !/data/.gitkeep
+/backups/
 
 # vercel
 .vercel

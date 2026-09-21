@@ -18,21 +18,29 @@ import {
   Shirt,
   Sparkles,
   Video,
+  X,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 
+import { saveSnapshot } from "@/actions/workspace";
 import { PageHeading } from "@/components/shared/page-heading";
+import { useMutation } from "@/components/shared/use-mutation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import type { PlanData, SnapshotsData } from "@/server/repositories/workspace";
+import type { PlanLine } from "@/lib/plan-calculation";
 
-type SavedPlanId = "balanced" | "quality" | "saving";
-type PlanId = SavedPlanId | "draft";
+type PlanId = string;
+type Line = Omit<PlanLine, "sourceItemId"> & { sourceItemId: number | null };
+type Plan = { id: PlanId; name: string; color: string; lines: Line[] };
 
 type Selection = {
   name: string;
   price: number;
   confirmed: boolean;
+  signature: string;
 };
 
 type Category = {
@@ -40,31 +48,7 @@ type Category = {
   name: string;
   icon: LucideIcon;
   description: string;
-  selections: Record<SavedPlanId, Selection>;
 };
-
-const plans: { id: PlanId; name: string; color: string }[] = [
-  {
-    id: "balanced",
-    name: "松弛平衡",
-    color: "#F27C8D",
-  },
-  {
-    id: "quality",
-    name: "质感优先",
-    color: "#9B8AFB",
-  },
-  {
-    id: "saving",
-    name: "轻盈控制",
-    color: "#FFB07C",
-  },
-  {
-    id: "draft",
-    name: "松弛平衡 · 副本",
-    color: "#8FD6C2",
-  },
-];
 
 const categories: Category[] = [
   {
@@ -72,117 +56,126 @@ const categories: Category[] = [
     name: "婚宴酒店",
     icon: Building2,
     description: "确认场地、餐标与宾客容纳人数。",
-    selections: {
-      balanced: { name: "衡山礼堂 · 梧桐厅", price: 88000, confirmed: true },
-      quality: { name: "衡山礼堂 · 梧桐厅", price: 88000, confirmed: true },
-      saving: { name: "梧桐小宴 · 午宴", price: 76800, confirmed: true },
-    },
   },
   {
     id: "planning",
     name: "婚礼策划",
     icon: Sparkles,
     description: "记录布置、花艺和灯光的服务范围。",
-    selections: {
-      balanced: { name: "白屿 · 山野来信", price: 26800, confirmed: true },
-      quality: { name: "白屿 · 全案定制", price: 33800, confirmed: true },
-      saving: { name: "白屿 · 山野来信", price: 26800, confirmed: true },
-    },
   },
   {
     id: "photo",
     name: "婚礼摄影",
     icon: Camera,
     description: "比较机位、拍摄时长与精修交付内容。",
-    selections: {
-      balanced: { name: "东奇 · 双机纪实", price: 6800, confirmed: true },
-      quality: { name: "之间 · 双机胶片", price: 9800, confirmed: true },
-      saving: { name: "东奇 · 单机纪实", price: 4500, confirmed: false },
-    },
   },
   {
     id: "film",
     name: "婚礼摄像",
     icon: Video,
     description: "确认摄像机位、成片内容与交付时间。",
-    selections: {
-      balanced: { name: "Half Film · 双机", price: 7200, confirmed: false },
-      quality: { name: "Half Film · 三机", price: 9800, confirmed: true },
-      saving: { name: "Half Film · 双机", price: 7200, confirmed: true },
-    },
   },
   {
     id: "dress",
     name: "婚纱礼服",
     icon: Shirt,
     description: "核对主纱、敬酒服和西装的套数与档期。",
-    selections: {
-      balanced: { name: "MUSE · 一主两副", price: 12800, confirmed: true },
-      quality: { name: "MUSE · 高定系列", price: 16800, confirmed: true },
-      saving: { name: "MUSE · 一主一副", price: 9800, confirmed: false },
-    },
   },
   {
     id: "host",
     name: "主持与化妆",
     icon: Mic2,
     description: "确认主持与化妆的服务内容和时间。",
-    selections: {
-      balanced: { name: "言川 + 林汐", price: 9800, confirmed: true },
-      quality: { name: "言川 + 林汐", price: 9800, confirmed: true },
-      saving: { name: "言川 + 林汐", price: 9800, confirmed: true },
-    },
   },
   {
     id: "car",
     name: "婚车与接亲",
     icon: Car,
     description: "对比主婚车、车队数量与接亲路线。",
-    selections: {
-      balanced: { name: "复古主车 + 5 辆车队", price: 11800, confirmed: false },
-      quality: { name: "复古主车 + 7 辆车队", price: 12400, confirmed: false },
-      saving: { name: "朋友主车 + 5 辆车队", price: 12900, confirmed: true },
-    },
   },
   {
     id: "gift",
     name: "喜糖与物料",
     icon: Gift,
     description: "核对请柬、喜糖和纸品的数量与单价。",
-    selections: {
-      balanced: { name: "定制纸品三件套", price: 5400, confirmed: true },
-      quality: { name: "手工纸品全套", price: 6400, confirmed: true },
-      saving: { name: "基础纸品三件套", price: 5400, confirmed: false },
-    },
   },
 ];
 
 const format = (number: number) =>
   new Intl.NumberFormat("zh-CN").format(number);
 
-export function PlanComparison() {
-  const [activePlan, setActivePlan] = useState<PlanId>("balanced");
-  const [visiblePlans, setVisiblePlans] = useState<PlanId[]>([
-    "balanced",
-    "quality",
-    "saving",
-  ]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState("photo");
-  const [overrides, setOverrides] = useState<Record<string, Selection>>({});
-  const [dirtyPlans, setDirtyPlans] = useState<PlanId[]>([]);
-  const [compareMode, setCompareMode] = useState(false);
-  const [base, setBase] = useState<PlanId>("balanced");
-  const [compare, setCompare] = useState<PlanId>("saving");
-  const [onlyDifferent, setOnlyDifferent] = useState(true);
+function groupFor(line: Line) {
+  if (line.categoryName === "婚宴酒店") return "venue";
+  if (line.categoryName === "婚庆策划" || line.categoryName === "其他服务")
+    return "planning";
+  if (line.itemName === "摄影" || line.categoryName === "婚纱照")
+    return "photo";
+  if (line.itemName === "摄像") return "film";
+  if (line.categoryName === "婚纱礼服") return "dress";
+  if (line.itemName === "主持" || line.itemName === "化妆") return "host";
+  if (line.categoryName === "婚车与接亲") return "car";
+  return "gift";
+}
 
-  const plan = (id: PlanId) => plans.find((item) => item.id === id)!;
-  const overrideKey = (planId: PlanId, categoryId: string) =>
-    `${planId}:${categoryId}`;
-  const baseSelection = (category: Category, planId: PlanId) =>
-    category.selections[planId === "draft" ? "balanced" : planId];
-  const selectionFor = (category: Category, planId: PlanId) =>
-    overrides[overrideKey(planId, category.id)] ??
-    baseSelection(category, planId);
+export function PlanComparison({
+  data,
+  currentLines,
+}: {
+  data: Pick<PlanData, "categories" | "items" | "options"> & SnapshotsData;
+  currentLines: PlanLine[];
+}) {
+  const plans: Plan[] = [
+    { id: "current", name: "当前方案", color: "#F27C8D", lines: currentLines },
+    ...data.snapshots.map((snapshot, index) => ({
+      id: String(snapshot.id),
+      name: snapshot.name,
+      color: ["#9B8AFB", "#FFB07C", "#8FD6C2"][index % 3]!,
+      lines: data.snapshotItems.filter(
+        (line) => line.snapshotId === snapshot.id,
+      ),
+    })),
+  ];
+  const visiblePlans = plans.map((entry) => entry.id);
+  const [activePlan, setActivePlan] = useState<PlanId>("current");
+  const [selectedCategoryId, setSelectedCategoryId] = useState("photo");
+  const [compareMode, setCompareMode] = useState(false);
+  const [base, setBase] = useState<PlanId>("current");
+  const [compare, setCompare] = useState<PlanId>(visiblePlans[1] ?? "current");
+  const [onlyDifferent, setOnlyDifferent] = useState(true);
+  const [snapshotName, setSnapshotName] = useState("");
+  const saveDialog = useRef<HTMLDialogElement>(null);
+  const mutation = useMutation();
+
+  const plan = (id: PlanId) =>
+    plans.find((item) => item.id === id) ?? plans[0]!;
+  const selectionFor = (category: Category, planId: PlanId): Selection => {
+    const lines = plan(planId).lines.filter(
+      (line) => groupFor(line) === category.id,
+    );
+    const chosen = lines.filter(
+      (line) => line.included && line.amountCents > 0,
+    );
+    const first = chosen[0];
+    return {
+      name: first
+        ? `${first.choiceName === "固定金额" ? first.itemName : first.choiceName}${chosen.length > 1 ? ` 等 ${chosen.length} 项` : ""}`
+        : "尚未选择",
+      price: lines.reduce((sum, line) => sum + line.amountCents, 0) / 100,
+      confirmed: lines.some(
+        (line) => line.status === "confirmed" || line.status === "completed",
+      ),
+      signature: JSON.stringify(
+        lines.map((line) => [
+          line.sourceItemId,
+          line.itemName,
+          line.choiceName,
+          line.amountCents,
+          line.status,
+          line.included,
+        ]),
+      ),
+    };
+  };
   const totalFor = (planId: PlanId) =>
     categories.reduce(
       (total, category) => total + selectionFor(category, planId).price,
@@ -197,38 +190,19 @@ export function PlanComparison() {
     (category) => category.id === selectedCategoryId,
   )!;
   const selectedChoice = selectionFor(selectedCategory, activePlan);
-  const isDirty = dirtyPlans.includes(activePlan);
-
-  const markDirty = (planId: PlanId) =>
-    setDirtyPlans((current) =>
-      current.includes(planId) ? current : [...current, planId],
-    );
-
-  const updateSelection = (next: Selection) => {
-    setOverrides((current) => ({
-      ...current,
-      [overrideKey(activePlan, selectedCategory.id)]: next,
-    }));
-    markDirty(activePlan);
+  const focusItemId =
+    currentLines.find(
+      (line) => groupFor(line) === selectedCategory.id && line.amountCents > 0,
+    )?.sourceItemId ??
+    currentLines.find((line) => groupFor(line) === selectedCategory.id)
+      ?.sourceItemId;
+  const isDirty = false;
+  const saveCurrentPlan = () => {
+    setSnapshotName(`婚礼方案 ${data.snapshots.length + 1}`);
+    mutation.setError("");
+    saveDialog.current?.showModal();
   };
-
-  const saveCurrentPlan = () =>
-    setDirtyPlans((current) => current.filter((id) => id !== activePlan));
-
-  const duplicateCurrentPlan = () => {
-    const copiedSelections = Object.fromEntries(
-      categories.map((category) => [
-        overrideKey("draft", category.id),
-        { ...selectionFor(category, activePlan) },
-      ]),
-    );
-    setOverrides((current) => ({ ...current, ...copiedSelections }));
-    setVisiblePlans((current) =>
-      current.includes("draft") ? current : [...current, "draft"],
-    );
-    setDirtyPlans((current) => current.filter((id) => id !== "draft"));
-    setActivePlan("draft");
-  };
+  const duplicateCurrentPlan = saveCurrentPlan;
 
   if (compareMode) {
     const leftPlan = plan(base);
@@ -238,7 +212,7 @@ export function PlanComparison() {
       if (!onlyDifferent) return true;
       const left = selectionFor(category, base);
       const right = selectionFor(category, compare);
-      return left.name !== right.name || left.price !== right.price;
+      return left.signature !== right.signature;
     });
 
     return (
@@ -265,6 +239,7 @@ export function PlanComparison() {
               label="方案一"
               value={base}
               planIds={visiblePlans}
+              plans={plans}
               onChange={(value) => value !== compare && setBase(value)}
             />
             <button
@@ -282,6 +257,7 @@ export function PlanComparison() {
               label="方案二"
               value={compare}
               planIds={visiblePlans}
+              plans={plans}
               onChange={(value) => value !== base && setCompare(value)}
             />
           </div>
@@ -350,7 +326,7 @@ export function PlanComparison() {
               const left = selectionFor(category, base);
               const right = selectionFor(category, compare);
               const delta = right.price - left.price;
-              const same = left.name === right.name && delta === 0;
+              const same = left.signature === right.signature;
               const CategoryIcon = category.icon;
 
               return (
@@ -404,7 +380,12 @@ export function PlanComparison() {
         description="在同一张清单里调整选择与预算，并比较不同方案的费用。"
         action={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="lg" onClick={duplicateCurrentPlan}>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={duplicateCurrentPlan}
+              disabled={mutation.pending}
+            >
               <Copy />
               另存为新方案
             </Button>
@@ -412,17 +393,27 @@ export function PlanComparison() {
               variant="outline"
               size="lg"
               onClick={() => setCompareMode(true)}
+              disabled={visiblePlans.length < 2}
             >
               <GitCompareArrows />
               对比方案
             </Button>
-            <Button size="lg" onClick={saveCurrentPlan} disabled={!isDirty}>
-              {isDirty ? <Save /> : <Check />}
-              {isDirty ? "保存方案" : "已保存"}
+            <Button
+              size="lg"
+              onClick={saveCurrentPlan}
+              disabled={mutation.pending}
+            >
+              <Save />
+              保存方案
             </Button>
           </div>
         }
       />
+      {mutation.error && (
+        <p role="alert" className="text-primary mb-4 text-xs">
+          {mutation.error}
+        </p>
+      )}
 
       <section className="relative overflow-hidden rounded-[36px] bg-[#302B38] text-white shadow-[0_22px_60px_rgba(59,48,82,.15)]">
         <div className="absolute -top-40 -left-24 size-[420px] rounded-full bg-[#F27C8D]/10 blur-[90px]" />
@@ -466,7 +457,7 @@ export function PlanComparison() {
                     isDirty ? "bg-[#FFB07C]" : "bg-[#8FD6C2]",
                   )}
                 />
-                {isDirty ? "有未保存的修改" : "所有修改已保存"}
+                {activePlan === "current" ? "当前方案自动保存" : "已保存的快照"}
               </span>
             </div>
 
@@ -665,27 +656,13 @@ export function PlanComparison() {
               <span className="relative flex items-center">
                 <select
                   value={selectedChoice.name}
-                  onChange={(event) => {
-                    const option = Object.values(
-                      selectedCategory.selections,
-                    ).find((item) => item.name === event.target.value);
-                    if (option)
-                      updateSelection({ ...option, confirmed: false });
-                  }}
+                  onChange={() => {}}
+                  disabled
                   className="w-full appearance-none bg-transparent pr-7 text-xs font-medium outline-none"
                 >
-                  {[
-                    ...new Map(
-                      Object.values(selectedCategory.selections).map((item) => [
-                        item.name,
-                        item,
-                      ]),
-                    ).values(),
-                  ].map((option) => (
-                    <option key={option.name} value={option.name}>
-                      {option.name}
-                    </option>
-                  ))}
+                  <option value={selectedChoice.name}>
+                    {selectedChoice.name}
+                  </option>
                 </select>
                 <ChevronDown className="text-muted-foreground pointer-events-none absolute right-0 size-3.5" />
               </span>
@@ -701,17 +678,31 @@ export function PlanComparison() {
           </div>
 
           <div className="flex flex-wrap gap-2 xl:justify-end">
-            <Button variant="outline">
+            <Button
+              variant="outline"
+              nativeButton={false}
+              render={
+                <Link
+                  href={
+                    focusItemId ? `/wedding?item=${focusItemId}` : "/wedding"
+                  }
+                />
+              }
+            >
               查看候选方案
               <ArrowRight />
             </Button>
             <Button
               variant={selectedChoice.confirmed ? "secondary" : "default"}
-              onClick={() =>
-                updateSelection({
-                  ...selectedChoice,
-                  confirmed: !selectedChoice.confirmed,
-                })
+              nativeButton={false}
+              render={
+                <Link
+                  href={
+                    focusItemId
+                      ? `/wedding/manage?item=${focusItemId}`
+                      : "/wedding/manage"
+                  }
+                />
               }
             >
               <Check />
@@ -720,6 +711,68 @@ export function PlanComparison() {
           </div>
         </div>
       </motion.section>
+      <dialog
+        ref={saveDialog}
+        className="bg-card text-card-foreground fixed inset-0 m-auto w-[calc(100%-2rem)] max-w-[420px] rounded-[28px] border p-0 shadow-[0_24px_80px_rgba(37,35,43,.2)] backdrop:bg-[#25232B]/40"
+      >
+        <form
+          className="p-6 sm:p-7"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const name = snapshotName.trim();
+            if (name)
+              mutation.run(
+                () => saveSnapshot(name),
+                () => saveDialog.current?.close(),
+              );
+          }}
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h2 className="font-editorial text-2xl">保存方案快照</h2>
+              <p className="text-muted-foreground mt-1.5 text-xs">
+                保存当前方案的项目选择与金额。
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="关闭"
+              onClick={() => saveDialog.current?.close()}
+              className="text-muted-foreground hover:bg-muted rounded-full p-2"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+          <label className="mt-7 block space-y-2 text-xs font-medium">
+            快照名称
+            <input
+              value={snapshotName}
+              onChange={(event) => setSnapshotName(event.target.value)}
+              maxLength={120}
+              required
+              autoFocus
+              className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/20 block w-full rounded-xl border px-3.5 py-3 text-sm outline-none focus-visible:ring-2"
+            />
+          </label>
+          {mutation.error && (
+            <p role="alert" className="text-destructive mt-3 text-xs">
+              {mutation.error}
+            </p>
+          )}
+          <div className="mt-7 flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => saveDialog.current?.close()}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={mutation.pending}>
+              {mutation.pending ? "保存中…" : "保存快照"}
+            </Button>
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }
@@ -774,11 +827,13 @@ function ComparisonSelect({
   label,
   value,
   planIds,
+  plans,
   onChange,
 }: {
   label: string;
   value: PlanId;
   planIds: PlanId[];
+  plans: Plan[];
   onChange: (value: PlanId) => void;
 }) {
   return (

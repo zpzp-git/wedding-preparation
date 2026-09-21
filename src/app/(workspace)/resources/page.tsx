@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   Building2,
   Camera,
@@ -14,105 +15,108 @@ import {
 
 import { PageHeading } from "@/components/shared/page-heading";
 import { Button } from "@/components/ui/button";
+import { getResourceData } from "@/server/repositories/workspace";
 
 export const metadata: Metadata = { title: "资源库" };
 
-export default function ResourcesPage() {
-  const resources = [
-    {
-      name: "衡山路礼堂",
-      type: "婚宴酒店",
-      contact: "周经理 · 138 **** 2156",
-      address: "徐汇区衡山路",
-      icon: Building2,
-      rating: "4.9",
-      note: "梧桐厅已留档期",
-      tone: "coral",
-    },
-    {
-      name: "白屿婚礼",
-      type: "婚礼策划",
-      contact: "Ella · 186 **** 7712",
-      address: "静安区巨鹿路",
-      icon: Sparkles,
-      rating: "4.8",
-      note: "已完成二次沟通",
-      tone: "lavender",
-    },
-    {
-      name: "东奇摄影工作室",
-      type: "摄影",
-      contact: "东奇 · 135 **** 0942",
-      address: "徐汇区安福路",
-      icon: Camera,
-      rating: "4.9",
-      note: "当前方案已选择",
-      tone: "peach",
-    },
-    {
-      name: "言川主持",
-      type: "主持人",
-      contact: "言川 · 137 **** 6321",
-      address: "上海 · 可出差",
-      icon: Mic2,
-      rating: "4.7",
-      note: "档期已确认",
-      tone: "blue",
-    },
-    {
-      name: "MUSE BRIDAL",
-      type: "婚纱礼服",
-      contact: "Nina · 189 **** 3187",
-      address: "徐汇区武康路",
-      icon: Shirt,
-      rating: "4.8",
-      note: "二次试纱待安排",
-      tone: "rose",
-    },
-    {
-      name: "之间影像",
-      type: "摄影",
-      contact: "Linn · 133 **** 4270",
-      address: "长宁区愚园路",
-      icon: Camera,
-      rating: "4.8",
-      note: "报价待确认",
-      tone: "lavender",
-    },
-  ];
+export default async function ResourcesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    q?: string | string[];
+    category?: string | string[];
+  }>;
+}) {
+  const params = await searchParams;
+  const q = typeof params.q === "string" ? params.q : "";
+  const category = typeof params.category === "string" ? params.category : "";
+  const data = getResourceData();
+  const resources = data.resources
+    .filter(
+      (resource) =>
+        (!category || String(resource.categoryId) === category) &&
+        [
+          resource.name,
+          resource.contact,
+          resource.phone,
+          resource.address,
+        ].some((value) => value.toLowerCase().includes(q.toLowerCase())),
+    )
+    .map((resource) => {
+      const type =
+        data.resourceCategories.find(
+          (entry) => entry.id === resource.categoryId,
+        )?.name ?? "其他";
+      const icon = /酒店|场地/.test(type)
+        ? Building2
+        : /策划/.test(type)
+          ? Sparkles
+          : /摄影|摄像/.test(type)
+            ? Camera
+            : /主持/.test(type)
+              ? Mic2
+              : /礼服|化妆/.test(type)
+                ? Shirt
+                : Building2;
+      const tone = /酒店/.test(type)
+        ? "coral"
+        : /策划/.test(type)
+          ? "lavender"
+          : /摄影|摄像/.test(type)
+            ? "peach"
+            : "blue";
+      return { ...resource, type, icon, tone, rating: "—" };
+    });
 
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
       <PageHeading
-        eyebrow={`已记录 ${resources.length} 家商家`}
+        eyebrow={`已记录 ${data.resources.length} 家商家`}
         title="资源库"
         description="集中查看商家的联系方式、地点和沟通进展。"
         action={
-          <Button size="lg">
+          <Button
+            size="lg"
+            nativeButton={false}
+            render={<Link href="/resources/manage" />}
+          >
             <Plus />
             添加新资源
           </Button>
         }
       />
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="bg-card border-border/70 flex max-w-md flex-1 items-center gap-2 rounded-full border px-4 py-3">
+        <form
+          action="/resources"
+          className="bg-card border-border/70 flex max-w-md flex-1 items-center gap-2 rounded-full border px-4 py-3"
+        >
           <Search className="text-muted-foreground size-4" />
           <input
+            name="q"
+            defaultValue={q}
             className="min-w-0 flex-1 bg-transparent text-xs outline-none"
             placeholder="搜索名称、联系人或地址"
           />
-        </div>
+        </form>
         <div className="flex scrollbar-none gap-2 overflow-x-auto">
-          {["全部 6", "婚宴 1", "策划 1", "影像 2", "造型 1", "主持 1"].map(
-            (item, index) => (
-              <button
-                key={item}
-                className={`shrink-0 rounded-full px-4 py-2 text-[11px] transition-colors ${index === 0 ? "bg-primary text-primary-foreground" : "bg-card border-border/70 hover:bg-muted border"}`}
-              >
-                {item}
-              </button>
-            ),
-          )}
+          {[
+            { id: "", name: "全部", count: data.resources.length },
+            ...data.resourceCategories.map((entry) => ({
+              id: String(entry.id),
+              name: entry.name,
+              count: data.resources.filter(
+                (resource) => resource.categoryId === entry.id,
+              ).length,
+            })),
+          ].map((item) => (
+            <Link
+              key={item.id}
+              href={`/resources?category=${item.id}&q=${encodeURIComponent(q)}`}
+              className={`shrink-0 rounded-full px-4 py-2 text-[11px] transition-colors ${category === item.id ? "bg-primary text-primary-foreground" : "bg-card border-border/70 hover:bg-muted border"}`}
+            >
+              {item.name} {item.count}
+            </Link>
+          ))}
         </div>
       </div>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -120,7 +124,7 @@ export default function ResourcesPage() {
           const Icon = resource.icon;
           return (
             <article
-              key={resource.name}
+              key={resource.id}
               className="bg-card border-border/70 group rounded-[28px] border p-5 transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(155,138,251,.12)] sm:p-6"
             >
               <div className="flex items-start justify-between">
@@ -144,6 +148,7 @@ export default function ResourcesPage() {
                 <p className="flex items-center gap-2">
                   <Phone className="size-3.5" />
                   {resource.contact}
+                  {resource.phone ? ` · ${resource.phone}` : ""}
                 </p>
                 <p className="flex items-center gap-2">
                   <MapPin className="size-3.5" />
@@ -151,7 +156,7 @@ export default function ResourcesPage() {
                 </p>
               </div>
               <div className="bg-muted/60 mt-5 rounded-2xl px-3.5 py-3 text-[10px]">
-                {resource.note}
+                {resource.note || "暂无备注"}
               </div>
             </article>
           );

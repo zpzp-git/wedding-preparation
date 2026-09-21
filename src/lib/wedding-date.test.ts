@@ -4,7 +4,10 @@ import { getWeddingDateSnapshot } from "./wedding-date";
 
 describe("getWeddingDateSnapshot", () => {
   it("按上海日期计算倒计时，不受服务器时区影响", () => {
-    const snapshot = getWeddingDateSnapshot(new Date("2026-09-19T16:30:00Z"));
+    const snapshot = getWeddingDateSnapshot(
+      new Date("2026-09-19T16:30:00Z"),
+      "2026-10-18",
+    );
 
     expect(snapshot.daysUntilWedding).toBe(28);
     expect(snapshot.todayLabel).toBe("9 月 20 日 · 星期日");
@@ -14,10 +17,12 @@ describe("getWeddingDateSnapshot", () => {
 
   it("在上海时间的婚礼当天归零", () => {
     expect(
-      getWeddingDateSnapshot(new Date("2026-10-17T15:59:00Z")).daysUntilWedding,
+      getWeddingDateSnapshot(new Date("2026-10-17T15:59:00Z"), "2026-10-18")
+        .daysUntilWedding,
     ).toBe(1);
     expect(
-      getWeddingDateSnapshot(new Date("2026-10-17T16:00:00Z")).daysUntilWedding,
+      getWeddingDateSnapshot(new Date("2026-10-17T16:00:00Z"), "2026-10-18")
+        .daysUntilWedding,
     ).toBe(0);
   });
 });

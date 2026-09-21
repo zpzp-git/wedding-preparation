@@ -9,9 +9,9 @@
   },
   "packageManager": "npm@11.8.0",
   "scripts": {
-    "dev": "next dev",
+    "dev": "node scripts/bootstrap.mjs && next dev",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "node scripts/bootstrap.mjs && next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
@@ -19,7 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "node scripts/bootstrap.mjs",
+    "db:backup": "node scripts/backup.mjs",
+    "db:examples": "node scripts/bootstrap.mjs && node scripts/seed-examples.mjs",
     "db:studio": "drizzle-kit studio",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test"
   },

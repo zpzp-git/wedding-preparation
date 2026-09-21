@@ -12,7 +12,6 @@ import {
   Sparkles,
   TrendingDown,
   WalletCards,
-  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -20,51 +19,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { getWeddingDateSnapshot } from "@/lib/wedding-date";
-
-const tasks = [
-  {
-    title: "确认婚礼摄影",
-    meta: "3 个方案待选择",
-    status: "待选方案",
-    tone: "coral",
-  },
-  {
-    title: "试穿敬酒服",
-    meta: "MUSE BRIDAL · 武康路",
-    status: "待预约",
-    tone: "lavender",
-  },
-  {
-    title: "提交宾客初版名单",
-    meta: "还差女方亲友 8 人",
-    status: "待补全",
-    tone: "peach",
-  },
-];
-
-const plans = [
-  {
-    id: "balanced",
-    name: "松弛平衡",
-    price: 168600,
-    note: "当前方案",
-    color: "bg-primary",
-  },
-  {
-    id: "quality",
-    name: "质感优先",
-    price: 186800,
-    note: "+ ¥18,200",
-    color: "bg-[#9B8AFB]",
-  },
-  {
-    id: "saving",
-    name: "轻盈控制",
-    price: 153200,
-    note: "− ¥15,400",
-    color: "bg-[#FFB07C]",
-  },
-];
+import type { PlanLine } from "@/lib/plan-calculation";
+import type { PlanData, SnapshotsData } from "@/server/repositories/workspace";
+import type { getSettings } from "@/server/repositories/workspace";
 
 function formatPrice(value: number) {
   return new Intl.NumberFormat("zh-CN").format(value);
@@ -72,31 +29,85 @@ function formatPrice(value: number) {
 
 type DashboardWorkspaceProps = {
   date: ReturnType<typeof getWeddingDateSnapshot>;
+  data: Pick<PlanData, "items"> &
+    Pick<SnapshotsData, "snapshots"> & {
+      settings: ReturnType<typeof getSettings>;
+    };
+  lines: PlanLine[];
 };
 
-export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
-  const [activePlan, setActivePlan] = useState("balanced");
-  const [toast, setToast] = useState(false);
+export function DashboardWorkspace({
+  date,
+  data,
+  lines,
+}: DashboardWorkspaceProps) {
+  const currentPrice =
+    lines.reduce((sum, line) => sum + line.amountCents, 0) / 100;
+  const budget = data.settings.budgetCents / 100;
+  const plans = [
+    {
+      id: "current",
+      name: "当前方案",
+      price: currentPrice,
+      note: "当前方案",
+      color: "bg-primary",
+    },
+    ...data.snapshots.slice(0, 2).map((snapshot, index) => ({
+      id: String(snapshot.id),
+      name: snapshot.name,
+      price: snapshot.totalCents / 100,
+      note: `${snapshot.totalCents >= currentPrice * 100 ? "+" : "−"} ¥${formatPrice(Math.abs(snapshot.totalCents / 100 - currentPrice))}`,
+      color: index === 0 ? "bg-[#9B8AFB]" : "bg-[#FFB07C]",
+    })),
+  ];
+  const tasks = data.items
+    .filter(
+      (item) => !["confirmed", "completed", "not_needed"].includes(item.status),
+    )
+    .slice(0, 3)
+    .map((item, index) => ({
+      title: item.name,
+      meta: item.description || "尚待安排",
+      status:
+        item.status === "comparing"
+          ? "对比中"
+          : item.status === "researching"
+            ? "了解中"
+            : "待开始",
+      tone: ["coral", "lavender", "peach"][index],
+    }));
+  const counts = {
+    confirmed: data.items.filter(
+      (item) => item.status === "confirmed" || item.status === "completed",
+    ).length,
+    comparing: data.items.filter(
+      (item) => item.status === "comparing" || item.status === "researching",
+    ).length,
+    pending: data.items.filter((item) => item.status === "not_started").length,
+    unused: data.items.filter((item) => item.status === "not_needed").length,
+  };
+  const progressed = counts.confirmed + counts.comparing;
+  const percent = data.items.length
+    ? Math.round((progressed / data.items.length) * 100)
+    : 0;
+  const [activePlan, setActivePlan] = useState("current");
   const selectedPlan =
     plans.find((plan) => plan.id === activePlan) ?? plans[0]!;
-  const pendingCount = tasks.length;
+  const pendingCount = counts.pending + counts.comparing;
   const headline =
-    date.daysUntilWedding === 0
-      ? "今天是婚礼日。"
-      : date.daysUntilWedding < 0
-        ? "婚礼已经过去了。"
-        : date.daysUntilWedding <= 7
-          ? "婚礼快到了。"
-          : `${date.greeting}，婚礼又近了一点。`;
+    date.daysUntilWedding === null
+      ? "开始规划你们的婚礼。"
+      : date.daysUntilWedding === 0
+        ? "今天是婚礼日。"
+        : date.daysUntilWedding < 0
+          ? "婚礼已经过去了。"
+          : date.daysUntilWedding <= 7
+            ? "婚礼快到了。"
+            : `${date.greeting}，婚礼又近了一点。`;
   const statusLine =
-    date.daysUntilWedding < 0
+    date.daysUntilWedding !== null && date.daysUntilWedding < 0
       ? "你们的婚礼计划还保存在这里。"
       : `目前有 ${pendingCount} 项待确认。`;
-
-  const showToast = () => {
-    setToast(true);
-    window.setTimeout(() => setToast(false), 2400);
-  };
 
   return (
     <div className="mx-auto max-w-[1380px] pb-14">
@@ -110,7 +121,11 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
           </h1>
           <p className="text-muted-foreground mt-2 text-sm">{statusLine}</p>
         </div>
-        <Button size="lg" onClick={showToast}>
+        <Button
+          size="lg"
+          nativeButton={false}
+          render={<Link href="/wedding/manage" />}
+        >
           <Plus /> 记录一个想法
         </Button>
       </div>
@@ -135,15 +150,19 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
                     animate={{ opacity: 1, y: 0 }}
                     className="font-editorial text-7xl leading-none sm:text-8xl"
                   >
-                    {Math.abs(date.daysUntilWedding)}
+                    {date.daysUntilWedding === null
+                      ? "—"
+                      : Math.abs(date.daysUntilWedding)}
                   </motion.span>
                 ) : null}
                 <p className="font-editorial pb-2 text-lg">
-                  {date.daysUntilWedding > 0
-                    ? "天之后"
-                    : date.daysUntilWedding === 0
-                      ? "今天，婚礼如约而至"
-                      : "天前，我们结婚了"}
+                  {date.daysUntilWedding === null
+                    ? "待设置婚礼日期"
+                    : date.daysUntilWedding > 0
+                      ? "天之后"
+                      : date.daysUntilWedding === 0
+                        ? "今天，婚礼如约而至"
+                        : "天前，我们结婚了"}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/15 pt-5 text-xs text-white/70">
@@ -152,7 +171,7 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
                   {date.weddingDateLabel}
                 </span>
                 <span className="hidden size-1 rounded-full bg-white/30 sm:block" />
-                <span>上海 · 衡山路礼堂</span>
+                <span>{data.settings.venue || "婚礼地点待填写"}</span>
               </div>
             </div>
           </div>
@@ -168,7 +187,7 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
             <div>
               <h2 className="font-editorial text-2xl">备婚进度</h2>
               <p className="text-muted-foreground mt-1.5 text-xs">
-                36 项计划中，已推进 23 项
+                {data.items.length} 项计划中，已推进 {progressed} 项
               </p>
             </div>
             <CircleDashed className="text-primary/50 size-5" />
@@ -195,26 +214,34 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
                   strokeWidth="6"
                   className="text-primary"
                   initial={{ pathLength: 0 }}
-                  animate={{ pathLength: 0.64 }}
+                  animate={{ pathLength: percent / 100 }}
                   transition={{ duration: 1.2, ease: "easeOut" }}
                 />
               </svg>
               <div className="absolute text-center">
                 <strong className="font-editorial text-3xl font-medium">
-                  64
+                  {percent}
                 </strong>
                 <span className="text-muted-foreground text-xs">%</span>
                 <p className="text-muted-foreground mt-1 text-[9px]">
-                  23 / 36 项
+                  {progressed} / {data.items.length} 项
                 </p>
               </div>
             </div>
             <div className="min-w-0 flex-1 space-y-3.5">
               {[
-                { label: "已确定", value: 18, dot: "bg-[#9B8AFB]" },
-                { label: "对比中", value: 5, dot: "bg-[#FFB07C]" },
-                { label: "待开始", value: 7, dot: "bg-[#D9D4E2]" },
-                { label: "不需要", value: 6, dot: "bg-[#E9E5EC]" },
+                {
+                  label: "已确定",
+                  value: counts.confirmed,
+                  dot: "bg-[#9B8AFB]",
+                },
+                {
+                  label: "对比中",
+                  value: counts.comparing,
+                  dot: "bg-[#FFB07C]",
+                },
+                { label: "待开始", value: counts.pending, dot: "bg-[#D9D4E2]" },
+                { label: "不需要", value: counts.unused, dot: "bg-[#E9E5EC]" },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -251,53 +278,57 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
           </div>
           <div className="space-y-1">
             {tasks.map((task, index) => (
-              <motion.button
+              <motion.div
                 key={task.title}
                 whileHover={{ x: 4 }}
-                onClick={showToast}
                 className="group hover:bg-muted/55 flex w-full items-center gap-4 rounded-2xl px-2 py-3 text-left transition-colors sm:px-3"
               >
-                <span
-                  className={cn(
-                    "grid size-9 shrink-0 place-items-center rounded-full border",
-                    task.tone === "coral" &&
-                      "border-primary/20 bg-primary/7 text-primary",
-                    task.tone === "lavender" &&
-                      "border-[#9B8AFB]/20 bg-[#9B8AFB]/8 text-[#7566D8]",
-                    task.tone === "peach" &&
-                      "border-[#FFB07C]/30 bg-[#FFB07C]/12 text-[#C56C39]",
-                  )}
+                <Link
+                  href="/wedding"
+                  className="flex w-full items-center gap-4"
                 >
-                  {index === 0 ? (
-                    <Sparkles className="size-4" />
-                  ) : index === 1 ? (
-                    <Clock3 className="size-4" />
-                  ) : (
-                    <Check className="size-4" />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">
-                    {task.title}
+                  <span
+                    className={cn(
+                      "grid size-9 shrink-0 place-items-center rounded-full border",
+                      task.tone === "coral" &&
+                        "border-primary/20 bg-primary/7 text-primary",
+                      task.tone === "lavender" &&
+                        "border-[#9B8AFB]/20 bg-[#9B8AFB]/8 text-[#7566D8]",
+                      task.tone === "peach" &&
+                        "border-[#FFB07C]/30 bg-[#FFB07C]/12 text-[#C56C39]",
+                    )}
+                  >
+                    {index === 0 ? (
+                      <Sparkles className="size-4" />
+                    ) : index === 1 ? (
+                      <Clock3 className="size-4" />
+                    ) : (
+                      <Check className="size-4" />
+                    )}
                   </span>
-                  <span className="text-muted-foreground mt-1 block truncate text-[11px]">
-                    {task.meta}
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium">
+                      {task.title}
+                    </span>
+                    <span className="text-muted-foreground mt-1 block truncate text-[11px]">
+                      {task.meta}
+                    </span>
                   </span>
-                </span>
-                <span className="text-muted-foreground shrink-0 text-[11px]">
-                  {task.status}
-                </span>
-                <ChevronRight className="text-muted-foreground size-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
-              </motion.button>
+                  <span className="text-muted-foreground shrink-0 text-[11px]">
+                    {task.status}
+                  </span>
+                  <ChevronRight className="text-muted-foreground size-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
+                </Link>
+              </motion.div>
             ))}
           </div>
-          <button
-            onClick={showToast}
+          <Link
+            href="/wedding/manage"
             className="text-muted-foreground hover:text-primary mt-4 flex items-center gap-2 px-3 text-xs transition-colors"
           >
             <Plus className="size-3.5" />
             添加一项提醒
-          </button>
+          </Link>
         </div>
 
         <div className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
@@ -310,7 +341,11 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
             </div>
             <span className="bg-secondary text-secondary-foreground flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px]">
               <TrendingDown className="size-3" />
-              预算内 11%
+              {budget > 0
+                ? currentPrice <= budget
+                  ? `预算内 ${Math.round((1 - currentPrice / budget) * 100)}%`
+                  : `超出 ${Math.round((currentPrice / budget - 1) * 100)}%`
+                : "预算待设置"}
             </span>
           </div>
           <div className="px-6 sm:px-8">
@@ -326,19 +361,26 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
                   ¥ {formatPrice(selectedPlan.price)}
                 </p>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  预算上限 ¥ 190,000
+                  预算上限 ¥ {formatPrice(budget)}
                 </p>
               </motion.div>
             </AnimatePresence>
             <div className="bg-muted mt-6 h-2 overflow-hidden rounded-full">
               <motion.div
                 className={cn("h-full rounded-full", selectedPlan.color)}
-                animate={{ width: `${(selectedPlan.price / 190000) * 100}%` }}
+                animate={{
+                  width: `${budget > 0 ? Math.min((selectedPlan.price / budget) * 100, 100) : 0}%`,
+                }}
                 transition={{ type: "spring", stiffness: 120, damping: 20 }}
               />
             </div>
           </div>
-          <div className="mt-6 grid grid-cols-3 border-t">
+          <div
+            className="mt-6 grid border-t"
+            style={{
+              gridTemplateColumns: `repeat(${plans.length}, minmax(0, 1fr))`,
+            }}
+          >
             {plans.map((plan) => (
               <button
                 key={plan.id}
@@ -360,7 +402,7 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
                 <span
                   className={cn(
                     "mt-1 block text-[9px]",
-                    plan.id === "balanced"
+                    plan.id === "current"
                       ? "text-primary"
                       : "text-muted-foreground",
                   )}
@@ -381,10 +423,14 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
             </span>
             <div>
               <p className="font-editorial text-xl">
-                三个完整方案，差异已经清楚了
+                {data.snapshots.length
+                  ? `已保存 ${data.snapshots.length} 份方案快照`
+                  : "当前方案已经建立"}
               </p>
               <p className="text-muted-foreground mt-1 text-xs leading-5">
-                “轻盈控制”比当前方案少 ¥15,400，主要来自婚宴与婚车。
+                {data.snapshots.length
+                  ? "可以选择当前方案与快照，逐项查看差异。"
+                  : "保存快照后，可以和当前方案进行对比。"}
               </p>
             </div>
           </div>
@@ -398,28 +444,6 @@ export function DashboardWorkspace({ date }: DashboardWorkspaceProps) {
           </Button>
         </div>
       </section>
-
-      <AnimatePresence>
-        {toast ? (
-          <motion.div
-            initial={{ opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 8 }}
-            className="bg-foreground text-background fixed right-5 bottom-5 z-50 flex items-center gap-3 rounded-full px-4 py-3 text-xs shadow-2xl"
-          >
-            <span className="bg-background/15 grid size-6 place-items-center rounded-full">
-              <Check className="size-3.5" />
-            </span>
-            原型操作已响应
-            <button
-              onClick={() => setToast(false)}
-              className="ml-2 opacity-60 hover:opacity-100"
-            >
-              <X className="size-3.5" />
-            </button>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
     </div>
   );
 }

@@ -4,18 +4,20 @@ import { Bell, CalendarDays } from "lucide-react";
 import { AppNavigation } from "./app-navigation";
 import { WeddingBrand } from "./wedding-brand";
 import type { getWeddingDateSnapshot } from "@/lib/wedding-date";
+import type { getSettings } from "@/server/repositories/workspace";
 
 type AppShellProps = Readonly<{
   children: ReactNode;
   date: ReturnType<typeof getWeddingDateSnapshot>;
+  settings: ReturnType<typeof getSettings>;
 }>;
 
-export function AppShell({ children, date }: AppShellProps) {
+export function AppShell({ children, date, settings }: AppShellProps) {
   return (
     <div className="min-h-svh">
       <header className="bg-background/90 sticky top-0 z-50 border-b backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <WeddingBrand compact />
+          <WeddingBrand compact settings={settings} />
           <Bell className="text-muted-foreground size-5 shrink-0" />
         </div>
         <div className="scrollbar-none overflow-x-auto px-2 pb-2">
@@ -26,7 +28,7 @@ export function AppShell({ children, date }: AppShellProps) {
       <div className="mx-auto grid min-h-svh max-w-[1680px] md:grid-cols-[246px_minmax(0,1fr)]">
         <aside className="bg-sidebar/65 sticky top-0 hidden h-svh border-r px-4 py-6 backdrop-blur-2xl md:flex md:flex-col">
           <div className="mb-10 px-2">
-            <WeddingBrand />
+            <WeddingBrand settings={settings} />
           </div>
           <AppNavigation orientation="vertical" />
 
@@ -38,7 +40,11 @@ export function AppShell({ children, date }: AppShellProps) {
               </div>
               <p className="font-editorial text-2xl">{date.weddingDateShort}</p>
               <div className="border-primary/15 mt-3 border-t pt-3">
-                {date.daysUntilWedding > 0 ? (
+                {date.daysUntilWedding === null ? (
+                  <span className="text-primary text-xs font-medium">
+                    点击上方设置日期
+                  </span>
+                ) : date.daysUntilWedding > 0 ? (
                   <>
                     <span className="text-muted-foreground text-xs">还有 </span>
                     <span className="text-primary font-editorial text-lg font-semibold">

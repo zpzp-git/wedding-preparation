@@ -24,7 +24,9 @@ const sqliteClient =
   globalForDatabase.sqliteClient ?? new DatabaseSync(databasePath);
 
 // 开启外键约束，并使用 WAL 改善本地读写并发。
-sqliteClient.exec("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;");
+sqliteClient.exec(
+  "PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;",
+);
 
 if (env.NODE_ENV !== "production") {
   globalForDatabase.sqliteClient = sqliteClient;

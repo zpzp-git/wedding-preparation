@@ -187,3 +187,16 @@
     scrollbar-width: none;
   }
 }
+@layer components {
+  .field {
+    @apply text-muted-foreground grid gap-1.5 text-xs;
+  }
+  .field input,
+  .field select {
+    @apply border-border text-foreground w-full rounded-xl border bg-transparent px-3 py-2.5 outline-none;
+  }
+  .field input:focus,
+  .field select:focus {
+    @apply border-primary;
+  }
+}

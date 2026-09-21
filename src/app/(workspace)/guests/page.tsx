@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   BedDouble,
   Check,
@@ -12,62 +13,32 @@ import {
 
 import { PageHeading } from "@/components/shared/page-heading";
 import { Button } from "@/components/ui/button";
+import { getGuestData } from "@/server/repositories/workspace";
 
 export const metadata: Metadata = { title: "宾客" };
 
-export default function GuestsPage() {
-  const guests = [
-    {
-      name: "陈屿 & 林夏",
-      side: "男方",
-      relation: "大学同学",
-      people: 2,
-      status: "已确认",
-      hasGift: true,
-      needsAccommodation: false,
-      note: "不吃香菜",
-    },
-    {
-      name: "周阿姨一家",
-      side: "女方",
-      relation: "亲友",
-      people: 3,
-      status: "已确认",
-      hasGift: true,
-      needsAccommodation: true,
-      note: "需要儿童座椅",
-    },
-    {
-      name: "赵一川",
-      side: "男方",
-      relation: "同事",
-      people: 1,
-      status: "待确认",
-      hasGift: false,
-      needsAccommodation: false,
-      note: "—",
-    },
-    {
-      name: "宋知意 & 顾言",
-      side: "女方",
-      relation: "高中同学",
-      people: 2,
-      status: "已确认",
-      hasGift: true,
-      needsAccommodation: true,
-      note: "素食 1 位",
-    },
-    {
-      name: "刘叔叔一家",
-      side: "男方",
-      relation: "亲友",
-      people: 4,
-      status: "待确认",
-      hasGift: false,
-      needsAccommodation: true,
-      note: "可能需要住宿",
-    },
-  ];
+export default async function GuestsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string | string[]; side?: string | string[] }>;
+}) {
+  const params = await searchParams;
+  const q = typeof params.q === "string" ? params.q : "";
+  const side = typeof params.side === "string" ? params.side : "";
+  const allGuests = getGuestData().guests;
+  const guests = allGuests
+    .filter(
+      (guest) =>
+        (!side || guest.side === side) &&
+        [guest.name, guest.relation, guest.note].some((value) =>
+          value.toLowerCase().includes(q.toLowerCase()),
+        ),
+    )
+    .map((guest) => ({
+      ...guest,
+      side: guest.side === "groom" ? "男方" : "女方",
+      status: guest.confirmed ? "已确认" : "待确认",
+    }));
   const expectedCount = guests.reduce(
     (total, guest) => total + guest.people,
     0,
@@ -80,16 +51,25 @@ export default function GuestsPage() {
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
       <PageHeading
-        eyebrow={`已录入 ${guests.length} 组 · ${expectedCount} 人`}
+        eyebrow={`已录入 ${allGuests.length} 组 · ${allGuests.reduce((sum, guest) => sum + guest.people, 0)} 人`}
         title="宾客名单"
         description="查看到场确认、随礼和住宿需求，方便安排座位与接待。"
         action={
           <div className="flex gap-2">
-            <Button variant="outline" size="lg">
+            <Button
+              variant="outline"
+              size="lg"
+              nativeButton={false}
+              render={<a href="/api/guests/export" />}
+            >
               <Download />
               导出
             </Button>
-            <Button size="lg">
+            <Button
+              size="lg"
+              nativeButton={false}
+              render={<Link href="/guests/manage" />}
+            >
               <Plus />
               添加宾客
             </Button>
@@ -107,7 +87,7 @@ export default function GuestsPage() {
           {
             label: "已经确认",
             value: confirmedCount,
-            note: `${Math.round((confirmedCount / expectedCount) * 100)}% 已确认`,
+            note: `${expectedCount ? Math.round((confirmedCount / expectedCount) * 100) : 0}% 已确认`,
             color: "bg-[#9B8AFB]",
           },
           {
@@ -137,16 +117,43 @@ export default function GuestsPage() {
       </section>
       <section className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
         <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <div className="bg-muted/65 flex max-w-sm flex-1 items-center gap-2 rounded-full px-4 py-2.5">
+          <form
+            action="/guests"
+            className="bg-muted/65 flex max-w-sm flex-1 items-center gap-2 rounded-full px-4 py-2.5"
+          >
             <Search className="text-muted-foreground size-4" />
             <input
+              name="q"
+              defaultValue={q}
               placeholder="搜索宾客"
               className="min-w-0 flex-1 bg-transparent text-xs outline-none"
             />
-          </div>
-          <button className="text-muted-foreground flex items-center gap-2 self-start rounded-full border px-4 py-2 text-[11px] sm:self-auto">
-            全部归属 <ChevronDown className="size-3.5" />
-          </button>
+          </form>
+          <details className="relative self-start sm:self-auto">
+            <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-2 rounded-full border px-4 py-2 text-[11px]">
+              {side === "groom"
+                ? "男方"
+                : side === "bride"
+                  ? "女方"
+                  : "全部归属"}{" "}
+              <ChevronDown className="size-3.5" />
+            </summary>
+            <div className="bg-card border-border absolute right-0 z-20 mt-1 min-w-28 rounded-xl border p-1 shadow-lg">
+              {[
+                ["", "全部归属"],
+                ["groom", "男方"],
+                ["bride", "女方"],
+              ].map(([value, label]) => (
+                <Link
+                  key={value}
+                  href={`/guests?side=${value}&q=${encodeURIComponent(q)}`}
+                  className="hover:bg-muted block rounded-lg px-3 py-2 text-xs"
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          </details>
         </div>
         <div className="overflow-x-auto">
           <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] gap-4 border-b px-6 py-3 text-[10px]">
@@ -161,7 +168,7 @@ export default function GuestsPage() {
           </div>
           {guests.map((guest) => (
             <div
-              key={guest.name}
+              key={guest.id}
               className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
             >
               <span className="flex items-center gap-3">
@@ -201,7 +208,7 @@ export default function GuestsPage() {
                   {guest.needsAccommodation ? "住宿" : "不住宿"}
                 </i>
               </span>
-              <span className="text-muted-foreground">{guest.note}</span>
+              <span className="text-muted-foreground">{guest.note || "—"}</span>
             </div>
           ))}
         </div>

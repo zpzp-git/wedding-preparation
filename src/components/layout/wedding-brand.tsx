@@ -1,74 +1,46 @@
 "use client";
 
 import { Heart, Pencil, X } from "lucide-react";
-import { useId, useRef, useState, useSyncExternalStore } from "react";
+import { useId, useRef, useState, useTransition } from "react";
 import type { FormEvent } from "react";
 
+import { saveSettings } from "@/actions/workspace";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const storageKey = "wedding-preparation:couple-names";
-const namesChangedEvent = "wedding-couple-names-changed";
+import type { getSettings } from "@/server/repositories/workspace";
 
 type CoupleNames = { groom: string; bride: string };
+type Settings = ReturnType<typeof getSettings>;
 
-function subscribeToNames(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  window.addEventListener(namesChangedEvent, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(namesChangedEvent, onChange);
-  };
-}
-
-function getSavedNames() {
-  try {
-    return window.localStorage.getItem(storageKey);
-  } catch {
-    return null;
-  }
-}
-
-function parseNames(raw: string | null): CoupleNames | null {
-  if (!raw) return null;
-  try {
-    const value: unknown = JSON.parse(raw);
-    if (
-      value &&
-      typeof value === "object" &&
-      "groom" in value &&
-      "bride" in value &&
-      typeof value.groom === "string" &&
-      typeof value.bride === "string" &&
-      value.groom.trim() &&
-      value.bride.trim()
-    ) {
-      return { groom: value.groom.trim(), bride: value.bride.trim() };
-    }
-  } catch {
-    // Ignore invalid local data and show the setup prompt.
-  }
-  return null;
-}
-
-export function WeddingBrand({ compact = false }: { compact?: boolean }) {
-  const savedNames = useSyncExternalStore(
-    subscribeToNames,
-    getSavedNames,
-    () => null,
-  );
-  const names = parseNames(savedNames);
+export function WeddingBrand({
+  compact = false,
+  settings,
+}: {
+  compact?: boolean;
+  settings: Settings;
+}) {
+  const names: CoupleNames | null =
+    settings.groom && settings.bride
+      ? { groom: settings.groom, bride: settings.bride }
+      : null;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const groomId = useId();
   const brideId = useId();
   const [groom, setGroom] = useState("");
   const [bride, setBride] = useState("");
+  const [weddingDate, setWeddingDate] = useState(settings.weddingDate);
+  const [venue, setVenue] = useState(settings.venue);
+  const [budget, setBudget] = useState((settings.budgetCents / 100).toFixed(2));
   const [error, setError] = useState("");
+  const [pending, startTransition] = useTransition();
 
   const openEditor = () => {
     setGroom(names?.groom ?? "");
     setBride(names?.bride ?? "");
+    setWeddingDate(settings.weddingDate);
+    setVenue(settings.venue);
+    setBudget((settings.budgetCents / 100).toFixed(2));
     setError("");
     dialogRef.current?.showModal();
   };
@@ -81,13 +53,16 @@ export function WeddingBrand({ compact = false }: { compact?: boolean }) {
       return;
     }
 
-    try {
-      window.localStorage.setItem(storageKey, JSON.stringify(nextNames));
-      window.dispatchEvent(new Event(namesChangedEvent));
-      dialogRef.current?.close();
-    } catch {
-      setError("保存失败，请检查浏览器存储设置。");
-    }
+    startTransition(async () => {
+      const result = await saveSettings({
+        ...nextNames,
+        weddingDate,
+        venue,
+        budget,
+      });
+      if (result.ok) dialogRef.current?.close();
+      else setError(result.error);
+    });
   };
 
   const displayNames = names
@@ -172,10 +147,10 @@ export function WeddingBrand({ compact = false }: { compact?: boolean }) {
           <div className="flex items-start justify-between gap-4">
             <div>
               <h2 id={titleId} className="font-editorial text-2xl">
-                设置新人姓名
+                设置婚礼信息
               </h2>
               <p className="text-muted-foreground mt-1.5 text-xs">
-                姓名会显示在左上角。
+                姓名、日期与预算会用于婚礼总览。
               </p>
             </div>
             <button
@@ -218,10 +193,56 @@ export function WeddingBrand({ compact = false }: { compact?: boolean }) {
                 className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/20 block w-full rounded-xl border px-3.5 py-3 text-sm outline-none focus-visible:ring-2"
               />
             </div>
+            <div className="space-y-2">
+              <label
+                htmlFor={`${titleId}-date`}
+                className="block text-xs font-medium"
+              >
+                婚礼日期
+              </label>
+              <input
+                id={`${titleId}-date`}
+                type="date"
+                value={weddingDate}
+                onChange={(event) => setWeddingDate(event.target.value)}
+                className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/20 block w-full rounded-xl border px-3.5 py-3 text-sm outline-none focus-visible:ring-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <label
+                htmlFor={`${titleId}-venue`}
+                className="block text-xs font-medium"
+              >
+                婚礼地点
+              </label>
+              <input
+                id={`${titleId}-venue`}
+                value={venue}
+                onChange={(event) => setVenue(event.target.value)}
+                className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/20 block w-full rounded-xl border px-3.5 py-3 text-sm outline-none focus-visible:ring-2"
+              />
+            </div>
+            <div className="space-y-2">
+              <label
+                htmlFor={`${titleId}-budget`}
+                className="block text-xs font-medium"
+              >
+                预算上限（元）
+              </label>
+              <input
+                id={`${titleId}-budget`}
+                type="number"
+                min="0"
+                step="0.01"
+                value={budget}
+                onChange={(event) => setBudget(event.target.value)}
+                className="border-input bg-background focus-visible:border-ring focus-visible:ring-ring/20 block w-full rounded-xl border px-3.5 py-3 text-sm outline-none focus-visible:ring-2"
+              />
+            </div>
           </div>
 
           <p className="text-muted-foreground mt-4 text-[11px]">
-            仅保存在此浏览器，可随时修改。
+            信息保存在本地数据库，可随时修改。
           </p>
           {error ? (
             <p className="text-destructive mt-2 text-xs">{error}</p>
@@ -235,8 +256,8 @@ export function WeddingBrand({ compact = false }: { compact?: boolean }) {
             >
               取消
             </Button>
-            <Button type="submit" size="lg">
-              保存姓名
+            <Button type="submit" size="lg" disabled={pending}>
+              {pending ? "保存中…" : "保存信息"}
             </Button>
           </div>
         </form>
