@@ -2,6 +2,8 @@
 
 import {
   Check,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Pencil,
   Plus,
@@ -17,6 +19,12 @@ import { GuestImport } from "@/components/guests/guest-import";
 import { PageHeading } from "@/components/shared/page-heading";
 import { useMutation } from "@/components/shared/use-mutation";
 import { Button } from "@/components/ui/button";
+import {
+  EMPTY_RELATION,
+  filterGuestList,
+  getGuestRelationships,
+  paginateGuests,
+} from "@/lib/guest-list";
 import type { GuestData } from "@/server/repositories/workspace";
 
 type Guest = GuestData["guests"][number];
@@ -24,7 +32,12 @@ type GuestForm = Omit<Guest, "id"> & { id: number | null };
 
 export function GuestWorkspace({ data }: { data: GuestData }) {
   const [query, setQuery] = useState("");
-  const [side, setSide] = useState("all");
+  const [side, setSide] = useState("");
+  const [relation, setRelation] = useState("");
+  const [status, setStatus] = useState("");
+  const [gift, setGift] = useState("");
+  const [accommodation, setAccommodation] = useState("");
+  const [page, setPage] = useState(1);
   const [form, setForm] = useState<GuestForm | null>(null);
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const dialog = useRef<HTMLDialogElement>(null);
@@ -33,20 +46,30 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
   const confirmed = data.guests
     .filter((guest) => guest.confirmed)
     .reduce((sum, guest) => sum + guest.people, 0);
-  const filtered = data.guests.filter(
-    (guest) =>
-      (side === "all" || guest.side === side) &&
-      [guest.name, guest.relation, guest.note].some((value) =>
-        value.toLowerCase().includes(query.toLowerCase()),
-      ),
-  );
+  const relationships = getGuestRelationships(data.guests);
+  const filtered = filterGuestList(data.guests, {
+    query,
+    side,
+    relation,
+    status,
+    gift,
+    accommodation,
+  });
+  const pagination = paginateGuests(filtered, page);
+  const pageGuests = pagination.items;
   const selectedGuests = data.guests.filter((guest) => selected.has(guest.id));
   const selectedPeople = selectedGuests.reduce(
     (sum, guest) => sum + guest.people,
     0,
   );
-  const allFilteredSelected =
-    filtered.length > 0 && filtered.every((guest) => selected.has(guest.id));
+  const allPageSelected =
+    pageGuests.length > 0 &&
+    pageGuests.every((guest) => selected.has(guest.id));
+
+  const resetSelectionAndPage = () => {
+    setSelected(new Set());
+    setPage(1);
+  };
 
   const open = (guest?: Guest) => {
     setForm(
@@ -125,9 +148,9 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
-                setSelected(new Set());
+                resetSelectionAndPage();
               }}
-              placeholder="搜索宾客"
+              placeholder="搜索宾客姓名"
               className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </label>
@@ -135,13 +158,70 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
             value={side}
             onChange={(event) => {
               setSide(event.target.value);
-              setSelected(new Set());
+              resetSelectionAndPage();
             }}
             className="border-border rounded-full border bg-transparent px-4 text-sm"
+            aria-label="按归属筛选"
           >
-            <option value="all">全部归属</option>
+            <option value="">全部归属</option>
             <option value="groom">男方</option>
             <option value="bride">女方</option>
+          </select>
+          <select
+            value={relation}
+            onChange={(event) => {
+              setRelation(event.target.value);
+              resetSelectionAndPage();
+            }}
+            className="border-border max-w-36 rounded-full border bg-transparent px-4 text-sm"
+            aria-label="按关系筛选"
+          >
+            <option value="">全部关系</option>
+            <option value={EMPTY_RELATION}>未填写关系</option>
+            {relationships.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+          <select
+            value={status}
+            onChange={(event) => {
+              setStatus(event.target.value);
+              resetSelectionAndPage();
+            }}
+            className="border-border rounded-full border bg-transparent px-4 text-sm"
+            aria-label="按确认状态筛选"
+          >
+            <option value="">全部状态</option>
+            <option value="confirmed">已确认</option>
+            <option value="pending">待确认</option>
+          </select>
+          <select
+            value={gift}
+            onChange={(event) => {
+              setGift(event.target.value);
+              resetSelectionAndPage();
+            }}
+            className="border-border rounded-full border bg-transparent px-4 text-sm"
+            aria-label="按是否有礼筛选"
+          >
+            <option value="">全部有礼情况</option>
+            <option value="yes">有礼</option>
+            <option value="no">无礼</option>
+          </select>
+          <select
+            value={accommodation}
+            onChange={(event) => {
+              setAccommodation(event.target.value);
+              resetSelectionAndPage();
+            }}
+            className="border-border rounded-full border bg-transparent px-4 text-sm"
+            aria-label="按住宿需求筛选"
+          >
+            <option value="">全部住宿情况</option>
+            <option value="yes">需要住宿</option>
+            <option value="no">不需要住宿</option>
           </select>
         </div>
         {selectedGuests.length > 0 && (
@@ -177,19 +257,19 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
         )}
         <div className="overflow-x-auto">
           <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[.25fr_1.4fr_.6fr_1fr_.45fr_.7fr_.6fr_.6fr_1fr_1fr] gap-3 border-b px-6 py-3 text-xs font-medium">
-            <label className="grid place-items-center" title="选择当前筛选结果">
+            <label className="grid place-items-center" title="选择当前页">
               <input
                 type="checkbox"
-                checked={allFilteredSelected}
+                checked={allPageSelected}
                 onChange={(event) => {
                   const next = new Set(selected);
-                  filtered.forEach((guest) => {
+                  pageGuests.forEach((guest) => {
                     if (event.target.checked) next.add(guest.id);
                     else next.delete(guest.id);
                   });
                   setSelected(next);
                 }}
-                aria-label="选择当前筛选结果"
+                aria-label="选择当前页"
               />
             </label>
             <span>宾客</span>
@@ -202,7 +282,7 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
             <span>备注</span>
             <span>操作</span>
           </div>
-          {filtered.map((guest) => (
+          {pageGuests.map((guest) => (
             <div
               key={guest.id}
               className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[.25fr_1.4fr_.6fr_1fr_.45fr_.7fr_.6fr_.6fr_1fr_1fr] items-center gap-3 border-b px-6 py-4 text-sm last:border-0"
@@ -273,6 +353,32 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
         {filtered.length === 0 && (
           <div className="text-muted-foreground p-12 text-center text-sm">
             还没有匹配的宾客。
+          </div>
+        )}
+        {filtered.length > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
+            <p className="text-muted-foreground text-sm">
+              共 {filtered.length} 组 · 第 {pagination.page} /{" "}
+              {pagination.totalPages} 页
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                disabled={pagination.page <= 1}
+                onClick={() => setPage(pagination.page - 1)}
+              >
+                <ChevronLeft />
+                上一页
+              </Button>
+              <Button
+                variant="outline"
+                disabled={pagination.page >= pagination.totalPages}
+                onClick={() => setPage(pagination.page + 1)}
+              >
+                下一页
+                <ChevronRight />
+              </Button>
+            </div>
           </div>
         )}
       </section>

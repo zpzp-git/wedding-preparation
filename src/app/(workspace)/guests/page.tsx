@@ -3,7 +3,8 @@ import Link from "next/link";
 import {
   BedDouble,
   Check,
-  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Download,
   Gift,
   Plus,
@@ -14,40 +15,68 @@ import {
 import { GuestImport } from "@/components/guests/guest-import";
 import { PageHeading } from "@/components/shared/page-heading";
 import { Button } from "@/components/ui/button";
+import {
+  EMPTY_RELATION,
+  filterGuestList,
+  getGuestRelationships,
+  paginateGuests,
+  type GuestListFilters,
+} from "@/lib/guest-list";
 import { getGuestData } from "@/server/repositories/workspace";
 
 export const metadata: Metadata = { title: "宾客" };
 
+type GuestSearchParams = Record<string, string | string[] | undefined>;
+
+function param(params: GuestSearchParams, name: string) {
+  return typeof params[name] === "string" ? params[name] : "";
+}
+
+function guestPageHref(filters: GuestListFilters, page: number) {
+  const params = new URLSearchParams();
+  for (const [name, value] of Object.entries(filters)) {
+    if (value) params.set(name === "query" ? "q" : name, value);
+  }
+  if (page > 1) params.set("page", String(page));
+  const query = params.toString();
+  return query ? `/guests?${query}` : "/guests";
+}
+
 export default async function GuestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string | string[]; side?: string | string[] }>;
+  searchParams: Promise<GuestSearchParams>;
 }) {
   const params = await searchParams;
-  const q = typeof params.q === "string" ? params.q : "";
-  const side = typeof params.side === "string" ? params.side : "";
+  const filters: GuestListFilters = {
+    query: param(params, "q"),
+    side: param(params, "side"),
+    relation: param(params, "relation"),
+    status: param(params, "status"),
+    gift: param(params, "gift"),
+    accommodation: param(params, "accommodation"),
+  };
+  const requestedPage = Number.parseInt(param(params, "page"), 10) || 1;
   const allGuests = getGuestData().guests;
-  const guests = allGuests
-    .filter(
-      (guest) =>
-        (!side || guest.side === side) &&
-        [guest.name, guest.relation, guest.note].some((value) =>
-          value.toLowerCase().includes(q.toLowerCase()),
-        ),
-    )
-    .map((guest) => ({
-      ...guest,
-      side: guest.side === "groom" ? "男方" : "女方",
-      status: guest.confirmed ? "已确认" : "待确认",
-    }));
-  const expectedCount = guests.reduce(
+  const filteredGuests = filterGuestList(allGuests, filters);
+  const { items, page, totalPages } = paginateGuests(
+    filteredGuests,
+    requestedPage,
+  );
+  const guests = items.map((guest) => ({
+    ...guest,
+    side: guest.side === "groom" ? "男方" : "女方",
+    status: guest.confirmed ? "已确认" : "待确认",
+  }));
+  const expectedCount = filteredGuests.reduce(
     (total, guest) => total + guest.people,
     0,
   );
-  const confirmedCount = guests
-    .filter((guest) => guest.status === "已确认")
+  const confirmedCount = filteredGuests
+    .filter((guest) => guest.confirmed)
     .reduce((total, guest) => total + guest.people, 0);
   const pendingCount = expectedCount - confirmedCount;
+  const relationships = getGuestRelationships(allGuests);
 
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
@@ -83,7 +112,7 @@ export default async function GuestsPage({
           {
             label: "预计宾客",
             value: expectedCount,
-            note: `共 ${guests.length} 组`,
+            note: `筛选结果共 ${filteredGuests.length} 组`,
             color: "bg-primary",
           },
           {
@@ -118,45 +147,82 @@ export default async function GuestsPage({
         ))}
       </section>
       <section className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
-        <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <form
-            action="/guests"
-            className="bg-muted/65 flex max-w-sm flex-1 items-center gap-2 rounded-full px-4 py-2.5"
-          >
+        <form
+          action="/guests"
+          className="flex flex-wrap items-center gap-3 border-b p-4 sm:px-6"
+        >
+          <label className="bg-muted/65 flex min-w-[220px] flex-1 items-center gap-2 rounded-full px-4 py-2.5">
             <Search className="text-muted-foreground size-4" />
             <input
               name="q"
-              defaultValue={q}
-              placeholder="搜索宾客"
+              defaultValue={filters.query}
+              placeholder="搜索宾客姓名"
               className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
-          </form>
-          <details className="relative self-start sm:self-auto">
-            <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-2 rounded-full border px-4 py-2 text-sm">
-              {side === "groom"
-                ? "男方"
-                : side === "bride"
-                  ? "女方"
-                  : "全部归属"}{" "}
-              <ChevronDown className="size-3.5" />
-            </summary>
-            <div className="bg-card border-border absolute right-0 z-20 mt-1 min-w-28 rounded-xl border p-1 shadow-lg">
-              {[
-                ["", "全部归属"],
-                ["groom", "男方"],
-                ["bride", "女方"],
-              ].map(([value, label]) => (
-                <Link
-                  key={value}
-                  href={`/guests?side=${value}&q=${encodeURIComponent(q)}`}
-                  className="hover:bg-muted block rounded-lg px-3 py-2 text-sm"
-                >
-                  {label}
-                </Link>
-              ))}
-            </div>
-          </details>
-        </div>
+          </label>
+          <select
+            name="side"
+            defaultValue={filters.side}
+            aria-label="按归属筛选"
+            className="border-border h-10 rounded-full border bg-transparent px-3 text-sm"
+          >
+            <option value="">全部归属</option>
+            <option value="groom">男方</option>
+            <option value="bride">女方</option>
+          </select>
+          <select
+            name="relation"
+            defaultValue={filters.relation}
+            aria-label="按关系筛选"
+            className="border-border h-10 max-w-36 rounded-full border bg-transparent px-3 text-sm"
+          >
+            <option value="">全部关系</option>
+            <option value={EMPTY_RELATION}>未填写关系</option>
+            {relationships.map((relation) => (
+              <option key={relation} value={relation}>
+                {relation}
+              </option>
+            ))}
+          </select>
+          <select
+            name="status"
+            defaultValue={filters.status}
+            aria-label="按确认状态筛选"
+            className="border-border h-10 rounded-full border bg-transparent px-3 text-sm"
+          >
+            <option value="">全部状态</option>
+            <option value="confirmed">已确认</option>
+            <option value="pending">待确认</option>
+          </select>
+          <select
+            name="gift"
+            defaultValue={filters.gift}
+            aria-label="按是否有礼筛选"
+            className="border-border h-10 rounded-full border bg-transparent px-3 text-sm"
+          >
+            <option value="">全部有礼情况</option>
+            <option value="yes">有礼</option>
+            <option value="no">无礼</option>
+          </select>
+          <select
+            name="accommodation"
+            defaultValue={filters.accommodation}
+            aria-label="按住宿需求筛选"
+            className="border-border h-10 rounded-full border bg-transparent px-3 text-sm"
+          >
+            <option value="">全部住宿情况</option>
+            <option value="yes">需要住宿</option>
+            <option value="no">不需要住宿</option>
+          </select>
+          <Button type="submit">筛选</Button>
+          <Button
+            variant="ghost"
+            nativeButton={false}
+            render={<Link href="/guests" />}
+          >
+            重置
+          </Button>
+        </form>
         <div className="overflow-x-auto">
           <div className="text-muted-foreground grid min-w-[1120px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] gap-4 border-b px-6 py-3 text-xs font-medium">
             <span>宾客</span>
@@ -214,6 +280,49 @@ export default async function GuestsPage({
             </div>
           ))}
         </div>
+        {filteredGuests.length === 0 ? (
+          <div className="text-muted-foreground p-12 text-center text-sm">
+            还没有匹配的宾客。
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t px-6 py-4">
+            <p className="text-muted-foreground text-sm">
+              共 {filteredGuests.length} 组 · 第 {page} / {totalPages} 页
+            </p>
+            <div className="flex gap-2">
+              {page > 1 ? (
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={guestPageHref(filters, page - 1)} />}
+                >
+                  <ChevronLeft />
+                  上一页
+                </Button>
+              ) : (
+                <Button variant="outline" disabled>
+                  <ChevronLeft />
+                  上一页
+                </Button>
+              )}
+              {page < totalPages ? (
+                <Button
+                  variant="outline"
+                  nativeButton={false}
+                  render={<Link href={guestPageHref(filters, page + 1)} />}
+                >
+                  下一页
+                  <ChevronRight />
+                </Button>
+              ) : (
+                <Button variant="outline" disabled>
+                  下一页
+                  <ChevronRight />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </section>
     </div>
   );
