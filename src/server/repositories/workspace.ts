@@ -90,4 +90,3 @@ export type PlanData = ReturnType<typeof getPlanData>;
 export type ResourceData = ReturnType<typeof getResourceData>;
 export type GuestData = ReturnType<typeof getGuestData>;
 export type SnapshotsData = ReturnType<typeof getSnapshotsData>;
-export type WorkspaceData = ReturnType<typeof getWorkspaceData>;

@@ -50,7 +50,6 @@ src/
 ├── server/
 │   ├── services/           # 业务规则
 │   └── repositories/       # 数据访问
-└── types/                  # 跨模块共享类型
 ```
 
 依赖方向保持为 `UI -> Actions -> Services -> Database`，共享读取集中在 `Repositories`。Route Handler 用于健康检查、宾客 Excel 预检和导出，普通 CRUD 使用 Server Actions。

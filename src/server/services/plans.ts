@@ -11,8 +11,7 @@ import {
 } from "@/db/schema";
 import { currentLines, currentTotal } from "@/lib/plan-calculation";
 
-export { currentLines, currentTotal } from "@/lib/plan-calculation";
-export type { PlanLine } from "@/lib/plan-calculation";
+export { currentLines } from "@/lib/plan-calculation";
 
 export function createSnapshot(name: string) {
   return db.transaction((tx) => {
