@@ -128,7 +128,8 @@ describe("本地备婚流程", () => {
       relation: "朋友",
       people: 2,
       confirmed: false,
-      hasGift: false,
+      giftAmount: "888.88",
+      giftSettled: true,
       needsAccommodation: false,
       note: "",
     });
@@ -208,6 +209,10 @@ describe("本地备婚流程", () => {
     const final = getWorkspaceData();
     expect(final.resources).toHaveLength(1);
     expect(final.guests).toHaveLength(1);
+    expect(final.guests[0]).toMatchObject({
+      giftAmountCents: 88888,
+      giftSettled: true,
+    });
     expect(currentTotal(currentLines(final))).toBe(579900);
     expect(final.snapshots[0]!.totalCents).toBe(709900);
     expect(
@@ -231,7 +236,8 @@ describe("本地备婚流程", () => {
             relation: "同学",
             people: 3,
             confirmed: true,
-            hasGift: true,
+            giftAmountCents: 80000,
+            giftSettled: true,
             needsAccommodation: false,
             note: "",
           },
@@ -241,7 +247,8 @@ describe("本地备婚流程", () => {
             relation: "同事",
             people: 1,
             confirmed: false,
-            hasGift: false,
+            giftAmountCents: 0,
+            giftSettled: false,
             needsAccommodation: true,
             note: "单人间",
           },

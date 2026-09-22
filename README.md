@@ -24,7 +24,7 @@ npm run dev
 
 当前方案随项目金额和候选方案选择实时变化。保存整体方案时会复制当时各项目的选择与金额；之后修改项目或报价不会改变已保存快照。方案对比仅实时计算，不保存对比结果。
 
-主页面沿用原型的布局。婚礼项目、资源库和宾客页面的新增入口会进入对应管理页面，那里可以编辑或删除记录；宾客页面的导出按钮可下载 CSV。
+主页面沿用原型的布局。婚礼项目和资源库的新增入口会进入对应管理页面；宾客页面可直接新增、编辑、批量删除、筛选和分页，并支持 Excel 模板下载、整表覆盖导入及导出。
 
 ## 常用命令
 
@@ -53,7 +53,7 @@ src/
 └── types/                  # 跨模块共享类型
 ```
 
-依赖方向保持为 `UI -> Actions -> Services -> Database`，共享读取集中在 `Repositories`。Route Handler 用于健康检查和宾客 CSV 导出，普通 CRUD 使用 Server Actions。
+依赖方向保持为 `UI -> Actions -> Services -> Database`，共享读取集中在 `Repositories`。Route Handler 用于健康检查、宾客 Excel 预检和导出，普通 CRUD 使用 Server Actions。
 
 ## 部署
 

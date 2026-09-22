@@ -13,7 +13,8 @@ const guests = [
     side: "groom" as const,
     relation: "同学",
     confirmed: true,
-    hasGift: true,
+    giftAmountCents: 88000,
+    giftSettled: true,
     needsAccommodation: false,
     note: "大学",
   },
@@ -22,21 +23,23 @@ const guests = [
     side: "bride" as const,
     relation: "",
     confirmed: false,
-    hasGift: false,
+    giftAmountCents: 0,
+    giftSettled: false,
     needsAccommodation: true,
     note: "",
   },
 ];
 
 describe("宾客筛选与分页", () => {
-  it("组合筛选归属、关系、状态、有礼和住宿", () => {
+  it("组合筛选归属、关系、状态、礼金、礼清和住宿", () => {
     expect(
       filterGuestList(guests, {
         query: "张",
         side: "groom",
         relation: "同学",
         status: "confirmed",
-        gift: "yes",
+        giftAmount: "with",
+        giftSettled: "yes",
         accommodation: "no",
       }),
     ).toEqual([guests[0]]);
@@ -46,7 +49,8 @@ describe("宾客筛选与分页", () => {
         side: "",
         relation: EMPTY_RELATION,
         status: "pending",
-        gift: "no",
+        giftAmount: "none",
+        giftSettled: "no",
         accommodation: "yes",
       }),
     ).toEqual([guests[1]]);

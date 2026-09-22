@@ -6,7 +6,8 @@ export type GuestListFilters = {
   side: string;
   relation: string;
   status: string;
-  gift: string;
+  giftAmount: string;
+  giftSettled: string;
   accommodation: string;
 };
 
@@ -15,7 +16,8 @@ type FilterableGuest = {
   side: "groom" | "bride";
   relation: string;
   confirmed: boolean;
-  hasGift: boolean;
+  giftAmountCents: number;
+  giftSettled: boolean;
   needsAccommodation: boolean;
   note: string;
 };
@@ -42,7 +44,11 @@ export function filterGuestList<T extends FilterableGuest>(
       return false;
     if (filters.status === "confirmed" && !guest.confirmed) return false;
     if (filters.status === "pending" && guest.confirmed) return false;
-    if (!matchesBoolean(guest.hasGift, filters.gift)) return false;
+    if (filters.giftAmount === "with" && guest.giftAmountCents <= 0)
+      return false;
+    if (filters.giftAmount === "none" && guest.giftAmountCents > 0)
+      return false;
+    if (!matchesBoolean(guest.giftSettled, filters.giftSettled)) return false;
     if (!matchesBoolean(guest.needsAccommodation, filters.accommodation))
       return false;
     return !query || guest.name.toLowerCase().includes(query);

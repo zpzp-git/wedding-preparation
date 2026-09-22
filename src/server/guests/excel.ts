@@ -34,9 +34,15 @@ const columnDefinitions = [
     hint: "必填，只能填写：已确认或待确认",
   },
   {
-    header: "有礼",
-    key: "hasGift",
-    width: 10,
+    header: "礼金（元）",
+    key: "giftAmount",
+    width: 16,
+    hint: "填写人民币金额，最多两位小数；没有礼金可填 0 或留空",
+  },
+  {
+    header: "礼清",
+    key: "giftSettled",
+    width: 12,
     hint: "必填，只能填写：是或否",
   },
   {
@@ -75,7 +81,8 @@ function addGuideSheet(workbook: ExcelJS.Workbook) {
     ["关系", "可不填", "大学同学"],
     ["人数", "必填；1 到 100 的整数", "2"],
     ["状态", "必填；从下拉选项选择已确认或待确认", "已确认"],
-    ["有礼", "必填；从下拉选项选择是或否", "是"],
+    ["礼金（元）", "填写人民币金额；没有礼金可填 0 或留空", "888"],
+    ["礼清", "必填；从下拉选项选择是或否", "是"],
     ["住宿", "必填；从下拉选项选择是或否", "否"],
     ["备注", "可不填，最多 2000 字", "素食"],
   ].forEach((values) => guide.addRow(values));
@@ -118,7 +125,16 @@ function applyDataValidation(sheet: ExcelJS.Worksheet) {
       errorTitle: "状态填写错误",
       error: "请选择已确认或待确认",
     };
-    for (const column of ["F", "G"]) {
+    sheet.getCell(`F${row}`).dataValidation = {
+      type: "decimal",
+      operator: "between",
+      allowBlank: true,
+      formulae: [0, 99_999_999.99],
+      showErrorMessage: true,
+      errorTitle: "礼金填写错误",
+      error: "请输入 0 到 99999999.99 的金额，最多两位小数",
+    };
+    for (const column of ["G", "H"]) {
       sheet.getCell(`${column}${row}`).dataValidation = {
         type: "list",
         allowBlank: false,
@@ -144,7 +160,7 @@ export async function createGuestWorkbook(guests: ExportGuest[]) {
     width,
   }));
   styleHeader(sheet.getRow(1));
-  sheet.autoFilter = "A1:H1";
+  sheet.autoFilter = "A1:I1";
   columnDefinitions.forEach((column, index) => {
     sheet.getCell(1, index + 1).note = column.hint;
   });
@@ -155,11 +171,13 @@ export async function createGuestWorkbook(guests: ExportGuest[]) {
       relation: guest.relation,
       people: guest.people,
       status: guest.confirmed ? "已确认" : "待确认",
-      hasGift: guest.hasGift ? "是" : "否",
+      giftAmount: guest.giftAmountCents / 100,
+      giftSettled: guest.giftSettled ? "是" : "否",
       needsAccommodation: guest.needsAccommodation ? "是" : "否",
       note: guest.note,
     }),
   );
+  sheet.getColumn(6).numFmt = "¥#,##0.00";
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber > 1) {
       row.alignment = { vertical: "middle", wrapText: true };
@@ -177,6 +195,14 @@ function cellText(row: ExcelJS.Row, column: number) {
 
 function pushError(errors: GuestImportError[], row: number, message: string) {
   if (errors.length < 100) errors.push({ row, message });
+}
+
+function parseGiftAmount(value: string) {
+  const normalized = value.replace(/[\s,¥￥]/g, "");
+  if (normalized === "") return 0;
+  if (!/^\d{1,8}(?:\.\d{1,2})?$/.test(normalized)) return null;
+  const [yuan, fraction = ""] = normalized.split(".");
+  return Number(yuan) * 100 + Number(fraction.padEnd(2, "0"));
 }
 
 export async function parseGuestWorkbook(buffer: Buffer): Promise<{
@@ -236,9 +262,10 @@ export async function parseGuestWorkbook(buffer: Buffer): Promise<{
     const relation = values[2] ?? "";
     const peopleText = values[3] ?? "";
     const status = values[4] ?? "";
-    const hasGift = values[5] ?? "";
-    const accommodation = values[6] ?? "";
-    const note = values[7] ?? "";
+    const giftAmountText = values[5] ?? "";
+    const giftSettled = values[6] ?? "";
+    const accommodation = values[7] ?? "";
+    const note = values[8] ?? "";
     let valid = true;
     if (!name) {
       pushError(errors, rowNumber, "姓名不能为空");
@@ -264,8 +291,13 @@ export async function parseGuestWorkbook(buffer: Buffer): Promise<{
       pushError(errors, rowNumber, "状态只能填写已确认或待确认");
       valid = false;
     }
-    if (hasGift !== "是" && hasGift !== "否") {
-      pushError(errors, rowNumber, "有礼只能填写是或否");
+    const giftAmountCents = parseGiftAmount(giftAmountText);
+    if (giftAmountCents === null) {
+      pushError(errors, rowNumber, "礼金必须是有效金额，最多两位小数");
+      valid = false;
+    }
+    if (giftSettled !== "是" && giftSettled !== "否") {
+      pushError(errors, rowNumber, "礼清只能填写是或否");
       valid = false;
     }
     if (accommodation !== "是" && accommodation !== "否") {
@@ -283,7 +315,8 @@ export async function parseGuestWorkbook(buffer: Buffer): Promise<{
       relation,
       people,
       confirmed: status === "已确认",
-      hasGift: hasGift === "是",
+      giftAmountCents: giftAmountCents ?? 0,
+      giftSettled: giftSettled === "是",
       needsAccommodation: accommodation === "是",
       note,
     });

@@ -138,7 +138,7 @@ try {
 
   client
     .prepare(
-      "INSERT INTO guests (name, side, relation, people, confirmed, has_gift, needs_accommodation, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO guests (name, side, relation, people, confirmed, gift_amount_cents, gift_settled, needs_accommodation, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .run(
       "示例 · 王小明一家",
@@ -146,7 +146,8 @@ try {
       "朋友",
       2,
       0,
-      0,
+      88800,
+      1,
       0,
       "演示宾客，可随时编辑或删除",
     );

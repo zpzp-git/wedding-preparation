@@ -4,7 +4,8 @@ export const guestExcelHeaders = [
   "关系",
   "人数",
   "状态",
-  "有礼",
+  "礼金（元）",
+  "礼清",
   "住宿",
   "备注",
 ] as const;
@@ -15,7 +16,8 @@ export type GuestImportRow = {
   relation: string;
   people: number;
   confirmed: boolean;
-  hasGift: boolean;
+  giftAmountCents: number;
+  giftSettled: boolean;
   needsAccommodation: boolean;
   note: string;
 };

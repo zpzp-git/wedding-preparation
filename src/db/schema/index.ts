@@ -91,7 +91,10 @@ export const guests = sqliteTable("guests", {
   relation: text("relation").notNull().default(""),
   people: integer("people").notNull().default(1),
   confirmed: integer("confirmed", { mode: "boolean" }).notNull().default(false),
-  hasGift: integer("has_gift", { mode: "boolean" }).notNull().default(false),
+  giftAmountCents: integer("gift_amount_cents").notNull().default(0),
+  giftSettled: integer("gift_settled", { mode: "boolean" })
+    .notNull()
+    .default(false),
   needsAccommodation: integer("needs_accommodation", { mode: "boolean" })
     .notNull()
     .default(false),

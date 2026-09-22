@@ -25,6 +25,10 @@ const money = z
   .string()
   .trim()
   .regex(/^\d{1,10}(?:\.\d{1,2})?$/, "请输入有效金额，最多两位小数");
+const giftMoney = z
+  .string()
+  .trim()
+  .regex(/^\d{1,8}(?:\.\d{1,2})?$/, "请输入有效礼金，最多两位小数");
 const cents = (value: string) => {
   const [yuan, fraction = ""] = value.split(".");
   return Number(yuan) * 100 + Number(fraction.padEnd(2, "0"));
@@ -542,25 +546,43 @@ const guestInput = z.object({
   relation: detail,
   people: z.number().int().min(1).max(100),
   confirmed: z.boolean(),
-  hasGift: z.boolean(),
+  giftAmount: giftMoney,
+  giftSettled: z.boolean(),
   needsAccommodation: z.boolean(),
   note: detail,
 });
-const guestReplaceInput = guestInput.omit({ id: true });
+const guestReplaceInput = z.object({
+  name: required,
+  side: z.enum(["groom", "bride"]),
+  relation: detail,
+  people: z.number().int().min(1).max(100),
+  confirmed: z.boolean(),
+  giftAmountCents: z.number().int().min(0).max(9_999_999_999),
+  giftSettled: z.boolean(),
+  needsAccommodation: z.boolean(),
+  note: detail,
+});
 export async function saveGuest(
   input: z.input<typeof guestInput>,
 ): Promise<Result> {
   return perform(() => {
     const value = guestInput.parse(input);
-    const { id: guestId, ...fields } = value;
+    const { id: guestId, giftAmount, ...fields } = value;
+    const databaseFields = {
+      ...fields,
+      giftAmountCents: cents(giftAmount),
+    };
     if (guestId) {
       if (!db.select().from(guests).where(eq(guests.id, guestId)).get())
         fail("宾客不存在");
-      db.update(guests).set(fields).where(eq(guests.id, guestId)).run();
+      db.update(guests).set(databaseFields).where(eq(guests.id, guestId)).run();
       return guestId;
     }
-    return db.insert(guests).values(fields).returning({ id: guests.id }).get()
-      .id;
+    return db
+      .insert(guests)
+      .values(databaseFields)
+      .returning({ id: guests.id })
+      .get().id;
   });
 }
 
