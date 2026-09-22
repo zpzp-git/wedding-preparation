@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import {
   EMPTY_RELATION,
   filterGuestList,
+  getGuestGiftAmounts,
   getGuestRelationships,
   paginateGuests,
 } from "@/lib/guest-list";
@@ -80,6 +81,7 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
     .filter((guest) => guest.confirmed)
     .reduce((sum, guest) => sum + guest.people, 0);
   const relationships = getGuestRelationships(data.guests);
+  const giftAmounts = getGuestGiftAmounts(data.guests);
   const filtered = filterGuestList(data.guests, {
     query,
     side,
@@ -273,8 +275,11 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
               aria-label="按礼金筛选"
             >
               <option value="">全部</option>
-              <option value="with">礼金 &gt; 0</option>
-              <option value="none">礼金 = 0</option>
+              {giftAmounts.map((amount) => (
+                <option key={amount} value={String(amount)}>
+                  {yuanFormatter.format(amount / 100)}
+                </option>
+              ))}
             </select>
           </label>
           <label className={filterShell}>

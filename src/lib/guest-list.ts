@@ -44,9 +44,10 @@ export function filterGuestList<T extends FilterableGuest>(
       return false;
     if (filters.status === "confirmed" && !guest.confirmed) return false;
     if (filters.status === "pending" && guest.confirmed) return false;
-    if (filters.giftAmount === "with" && guest.giftAmountCents <= 0)
-      return false;
-    if (filters.giftAmount === "none" && guest.giftAmountCents > 0)
+    if (
+      filters.giftAmount &&
+      guest.giftAmountCents !== Number(filters.giftAmount)
+    )
       return false;
     if (!matchesBoolean(guest.giftSettled, filters.giftSettled)) return false;
     if (!matchesBoolean(guest.needsAccommodation, filters.accommodation))
@@ -59,6 +60,12 @@ export function getGuestRelationships(guests: FilterableGuest[]) {
   return [
     ...new Set(guests.map((guest) => guest.relation.trim()).filter(Boolean)),
   ].sort((left, right) => left.localeCompare(right, "zh-CN"));
+}
+
+export function getGuestGiftAmounts(guests: FilterableGuest[]) {
+  return [...new Set(guests.map((guest) => guest.giftAmountCents))].sort(
+    (left, right) => left - right,
+  );
 }
 
 export function paginateGuests<T>(guests: T[], requestedPage: number) {

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   EMPTY_RELATION,
   filterGuestList,
+  getGuestGiftAmounts,
   getGuestRelationships,
   paginateGuests,
 } from "./guest-list";
@@ -38,7 +39,7 @@ describe("宾客筛选与分页", () => {
         side: "groom",
         relation: "同学",
         status: "confirmed",
-        giftAmount: "with",
+        giftAmount: "88000",
         giftSettled: "yes",
         accommodation: "no",
       }),
@@ -49,7 +50,7 @@ describe("宾客筛选与分页", () => {
         side: "",
         relation: EMPTY_RELATION,
         status: "pending",
-        giftAmount: "none",
+        giftAmount: "0",
         giftSettled: "no",
         accommodation: "yes",
       }),
@@ -58,6 +59,7 @@ describe("宾客筛选与分页", () => {
 
   it("整理关系选项并限制分页范围", () => {
     expect(getGuestRelationships(guests)).toEqual(["同学"]);
+    expect(getGuestGiftAmounts(guests)).toEqual([0, 88000]);
     const list = Array.from({ length: 23 }, (_, index) => index + 1);
     expect(paginateGuests(list, 2)).toMatchObject({
       page: 2,
