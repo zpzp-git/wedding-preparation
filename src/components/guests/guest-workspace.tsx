@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  BedDouble,
   Check,
   ChevronLeft,
   ChevronRight,
   Download,
+  Gift,
   Pencil,
   Plus,
   Search,
@@ -117,26 +119,42 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
       />
       <section className="mb-5 grid gap-4 sm:grid-cols-3">
         {[
-          ["预计宾客", expected, `共 ${data.guests.length} 组`],
-          [
-            "已经确认",
-            confirmed,
-            expected
+          {
+            label: "预计宾客",
+            value: expected,
+            note: `共 ${data.guests.length} 组`,
+            color: "bg-primary",
+          },
+          {
+            label: "已经确认",
+            value: confirmed,
+            note: expected
               ? `${Math.round((confirmed / expected) * 100)}% 已确认`
               : "暂无记录",
-          ],
-          ["等待回复", expected - confirmed, "涉及待回复的宾客"],
-        ].map(([label, value, note]) => (
+            color: "bg-[#9B8AFB]",
+          },
+          {
+            label: "等待回复",
+            value: expected - confirmed,
+            note: "涉及待回复的宾客",
+            color: "bg-[#FFB07C]",
+          },
+        ].map((item) => (
           <div
-            key={label}
+            key={item.label}
             className="bg-card border-border/70 rounded-[24px] border p-5"
           >
-            <p className="text-muted-foreground text-xs">{label}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-muted-foreground text-xs font-medium">
+                {item.label}
+              </p>
+              <i className={`size-1.5 rounded-full ${item.color}`} />
+            </div>
             <p className="font-editorial mt-4 text-3xl">
-              {value}
+              {item.value}
               <span className="text-muted-foreground ml-1 text-xs">人</span>
             </p>
-            <p className="text-muted-foreground mt-1 text-xs">{note}</p>
+            <p className="text-muted-foreground mt-1 text-xs">{item.note}</p>
           </div>
         ))}
       </section>
@@ -306,25 +324,39 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
                 </i>
                 <strong className="font-medium">{guest.name}</strong>
               </span>
-              <span>{guest.side === "groom" ? "男方" : "女方"}</span>
-              <span>{guest.relation || "—"}</span>
-              <span>{guest.people}</span>
-              <span
-                className={
-                  guest.confirmed ? "text-[#7566D8]" : "text-[#C56C39]"
-                }
-              >
-                {guest.confirmed ? (
-                  <span className="flex items-center gap-1">
-                    <Check className="size-3" />
-                    已确认
-                  </span>
-                ) : (
-                  "待确认"
-                )}
+              <span className="text-muted-foreground">
+                {guest.side === "groom" ? "男方" : "女方"}
               </span>
-              <span>{guest.hasGift ? "有" : "—"}</span>
-              <span>{guest.needsAccommodation ? "需要" : "—"}</span>
+              <span className="text-muted-foreground">
+                {guest.relation || "—"}
+              </span>
+              <span className="font-editorial text-sm">{guest.people}</span>
+              <span>
+                <i
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-5 not-italic ${guest.confirmed ? "bg-[#9B8AFB]/10 text-[#7566D8]" : "bg-[#FFB07C]/15 text-[#C56C39]"}`}
+                >
+                  {guest.confirmed ? <Check className="size-3" /> : null}
+                  {guest.confirmed ? "已确认" : "待确认"}
+                </i>
+              </span>
+              <span>
+                <i
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-5 not-italic ${guest.hasGift ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                >
+                  {guest.hasGift ? <Gift className="size-3" /> : null}
+                  {guest.hasGift ? "有礼" : "无礼"}
+                </i>
+              </span>
+              <span>
+                <i
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-5 not-italic ${guest.needsAccommodation ? "bg-[#6F9CE8]/10 text-[#537FC8]" : "bg-muted text-muted-foreground"}`}
+                >
+                  {guest.needsAccommodation ? (
+                    <BedDouble className="size-3" />
+                  ) : null}
+                  {guest.needsAccommodation ? "住宿" : "不住宿"}
+                </i>
+              </span>
               <span className="truncate" title={guest.note}>
                 {guest.note || "—"}
               </span>
@@ -333,6 +365,7 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
                   type="button"
                   onClick={() => open(guest)}
                   aria-label={`编辑${guest.name}`}
+                  className="hover:bg-muted rounded-full p-2 transition-colors"
                 >
                   <Pencil className="size-4" />
                 </button>
@@ -343,6 +376,7 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
                       mutation.run(() => deleteGuest(guest.id));
                   }}
                   aria-label={`删除${guest.name}`}
+                  className="text-destructive hover:bg-destructive/10 rounded-full p-2 transition-colors"
                 >
                   <Trash2 className="size-4" />
                 </button>
