@@ -18,7 +18,16 @@ export default async function DashboardPage() {
   const settings = getSettings();
   return (
     <DashboardWorkspace
-      data={{ items: plan.items, snapshots: getSavedPlans(), settings }}
+      data={{
+        items: plan.items.filter(
+          (item) =>
+            !item.hidden &&
+            !plan.categories.find((category) => category.id === item.categoryId)
+              ?.hidden,
+        ),
+        snapshots: getSavedPlans(),
+        settings,
+      }}
       lines={currentLines(plan)}
       date={getWeddingDateSnapshot(new Date(), settings.weddingDate)}
     />

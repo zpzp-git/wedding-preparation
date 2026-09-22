@@ -11,6 +11,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import { GuestImport } from "@/components/guests/guest-import";
 import { PageHeading } from "@/components/shared/page-heading";
 import { Button } from "@/components/ui/button";
 import { getGuestData } from "@/server/repositories/workspace";
@@ -55,7 +56,8 @@ export default async function GuestsPage({
         title="宾客名单"
         description="查看到场确认、随礼和住宿需求，方便安排座位与接待。"
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <GuestImport />
             <Button
               variant="outline"
               size="lg"
@@ -102,16 +104,16 @@ export default async function GuestsPage({
             className="bg-card border-border/70 rounded-[24px] border p-5"
           >
             <div className="flex items-center justify-between">
-              <p className="text-muted-foreground text-[11px]">{item.label}</p>
+              <p className="text-muted-foreground text-xs font-medium">
+                {item.label}
+              </p>
               <i className={`size-1.5 rounded-full ${item.color}`} />
             </div>
             <p className="font-editorial mt-4 text-3xl">
               {item.value}
               <span className="text-muted-foreground ml-1 text-xs">人</span>
             </p>
-            <p className="text-muted-foreground mt-1 text-[10px]">
-              {item.note}
-            </p>
+            <p className="text-muted-foreground mt-1 text-xs">{item.note}</p>
           </div>
         ))}
       </section>
@@ -126,11 +128,11 @@ export default async function GuestsPage({
               name="q"
               defaultValue={q}
               placeholder="搜索宾客"
-              className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </form>
           <details className="relative self-start sm:self-auto">
-            <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-2 rounded-full border px-4 py-2 text-[11px]">
+            <summary className="text-muted-foreground flex cursor-pointer list-none items-center gap-2 rounded-full border px-4 py-2 text-sm">
               {side === "groom"
                 ? "男方"
                 : side === "bride"
@@ -147,7 +149,7 @@ export default async function GuestsPage({
                 <Link
                   key={value}
                   href={`/guests?side=${value}&q=${encodeURIComponent(q)}`}
-                  className="hover:bg-muted block rounded-lg px-3 py-2 text-xs"
+                  className="hover:bg-muted block rounded-lg px-3 py-2 text-sm"
                 >
                   {label}
                 </Link>
@@ -156,7 +158,7 @@ export default async function GuestsPage({
           </details>
         </div>
         <div className="overflow-x-auto">
-          <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] gap-4 border-b px-6 py-3 text-[10px]">
+          <div className="text-muted-foreground grid min-w-[1120px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] gap-4 border-b px-6 py-3 text-xs font-medium">
             <span>宾客</span>
             <span>归属</span>
             <span>关系</span>
@@ -169,7 +171,7 @@ export default async function GuestsPage({
           {guests.map((guest) => (
             <div
               key={guest.id}
-              className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] items-center gap-4 border-b px-6 py-4 text-xs transition-colors last:border-0"
+              className="hover:bg-muted/35 grid min-w-[1120px] grid-cols-[1.4fr_.65fr_.9fr_.4fr_.75fr_.75fr_.85fr_1.1fr] items-center gap-4 border-b px-6 py-4 text-sm transition-colors last:border-0"
             >
               <span className="flex items-center gap-3">
                 <i className="bg-secondary text-secondary-foreground grid size-8 place-items-center rounded-full not-italic">
@@ -182,7 +184,7 @@ export default async function GuestsPage({
               <span className="font-editorial text-sm">{guest.people}</span>
               <span>
                 <i
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] not-italic ${guest.status === "已确认" ? "bg-[#9B8AFB]/10 text-[#7566D8]" : "bg-[#FFB07C]/15 text-[#C56C39]"}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-5 not-italic ${guest.status === "已确认" ? "bg-[#9B8AFB]/10 text-[#7566D8]" : "bg-[#FFB07C]/15 text-[#C56C39]"}`}
                 >
                   {guest.status === "已确认" ? (
                     <Check className="size-3" />
@@ -192,7 +194,7 @@ export default async function GuestsPage({
               </span>
               <span>
                 <i
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] not-italic ${guest.hasGift ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-5 not-italic ${guest.hasGift ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
                 >
                   {guest.hasGift ? <Gift className="size-3" /> : null}
                   {guest.hasGift ? "有礼" : "无礼"}
@@ -200,7 +202,7 @@ export default async function GuestsPage({
               </span>
               <span>
                 <i
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] not-italic ${guest.needsAccommodation ? "bg-[#6F9CE8]/10 text-[#537FC8]" : "bg-muted text-muted-foreground"}`}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs leading-5 not-italic ${guest.needsAccommodation ? "bg-[#6F9CE8]/10 text-[#537FC8]" : "bg-muted text-muted-foreground"}`}
                 >
                   {guest.needsAccommodation ? (
                     <BedDouble className="size-3" />

@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { deleteGuest, saveGuest } from "@/actions/workspace";
+import { deleteGuest, deleteGuests, saveGuest } from "@/actions/workspace";
+import { GuestImport } from "@/components/guests/guest-import";
 import { PageHeading } from "@/components/shared/page-heading";
 import { useMutation } from "@/components/shared/use-mutation";
 import { Button } from "@/components/ui/button";
@@ -21,16 +22,11 @@ import type { GuestData } from "@/server/repositories/workspace";
 type Guest = GuestData["guests"][number];
 type GuestForm = Omit<Guest, "id"> & { id: number | null };
 
-function csvValue(value: string | number | boolean) {
-  const text = String(value);
-  const safe = /^[=+\-@]/.test(text) ? `'${text}` : text;
-  return `"${safe.replaceAll('"', '""')}"`;
-}
-
 export function GuestWorkspace({ data }: { data: GuestData }) {
   const [query, setQuery] = useState("");
   const [side, setSide] = useState("all");
   const [form, setForm] = useState<GuestForm | null>(null);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const dialog = useRef<HTMLDialogElement>(null);
   const mutation = useMutation();
   const expected = data.guests.reduce((sum, guest) => sum + guest.people, 0);
@@ -44,6 +40,13 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
         value.toLowerCase().includes(query.toLowerCase()),
       ),
   );
+  const selectedGuests = data.guests.filter((guest) => selected.has(guest.id));
+  const selectedPeople = selectedGuests.reduce(
+    (sum, guest) => sum + guest.people,
+    0,
+  );
+  const allFilteredSelected =
+    filtered.length > 0 && filtered.every((guest) => selected.has(guest.id));
 
   const open = (guest?: Guest) => {
     setForm(
@@ -64,40 +67,6 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
     mutation.setError("");
     dialog.current?.showModal();
   };
-  const exportCsv = () => {
-    const headers = [
-      "姓名",
-      "归属",
-      "关系",
-      "人数",
-      "状态",
-      "有礼",
-      "住宿",
-      "备注",
-    ];
-    const rows = data.guests.map((guest) => [
-      guest.name,
-      guest.side === "groom" ? "男方" : "女方",
-      guest.relation,
-      guest.people,
-      guest.confirmed ? "已确认" : "待确认",
-      guest.hasGift ? "是" : "否",
-      guest.needsAccommodation ? "是" : "否",
-      guest.note,
-    ]);
-    const content =
-      "\uFEFF" +
-      [headers, ...rows].map((row) => row.map(csvValue).join(",")).join("\r\n");
-    const url = URL.createObjectURL(
-      new Blob([content], { type: "text/csv;charset=utf-8" }),
-    );
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "婚礼宾客.csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
       <PageHeading
@@ -105,8 +74,14 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
         title="宾客名单"
         description="记录宾客人数与确认状态，方便安排接待。"
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" size="lg" onClick={exportCsv}>
+          <div className="flex flex-wrap gap-2">
+            <GuestImport />
+            <Button
+              variant="outline"
+              size="lg"
+              nativeButton={false}
+              render={<a href="/api/guests/export" />}
+            >
               <Download />
               导出
             </Button>
@@ -148,23 +123,75 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
             <Search className="text-muted-foreground size-4" />
             <input
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setSelected(new Set());
+              }}
               placeholder="搜索宾客"
-              className="min-w-0 flex-1 bg-transparent text-xs outline-none"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </label>
           <select
             value={side}
-            onChange={(event) => setSide(event.target.value)}
-            className="border-border rounded-full border bg-transparent px-4 text-xs"
+            onChange={(event) => {
+              setSide(event.target.value);
+              setSelected(new Set());
+            }}
+            className="border-border rounded-full border bg-transparent px-4 text-sm"
           >
             <option value="all">全部归属</option>
             <option value="groom">男方</option>
             <option value="bride">女方</option>
           </select>
         </div>
+        {selectedGuests.length > 0 && (
+          <div className="bg-destructive/5 border-destructive/15 flex flex-wrap items-center justify-between gap-3 border-b px-6 py-3">
+            <p className="text-sm">
+              已选择 {selectedGuests.length} 组，共 {selectedPeople} 人
+            </p>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={() => setSelected(new Set())}>
+                取消选择
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={mutation.pending}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      `确认删除已选择的 ${selectedGuests.length} 组宾客，共 ${selectedPeople} 人？`,
+                    )
+                  )
+                    mutation.run(
+                      () =>
+                        deleteGuests(selectedGuests.map((guest) => guest.id)),
+                      () => setSelected(new Set()),
+                    );
+                }}
+              >
+                <Trash2 />
+                {mutation.pending ? "删除中…" : "删除所选"}
+              </Button>
+            </div>
+          </div>
+        )}
         <div className="overflow-x-auto">
-          <div className="text-muted-foreground grid min-w-[940px] grid-cols-[1.4fr_.6fr_1fr_.45fr_.7fr_.6fr_.6fr_1fr_1fr] gap-3 border-b px-6 py-3 text-xs">
+          <div className="text-muted-foreground grid min-w-[1080px] grid-cols-[.25fr_1.4fr_.6fr_1fr_.45fr_.7fr_.6fr_.6fr_1fr_1fr] gap-3 border-b px-6 py-3 text-xs font-medium">
+            <label className="grid place-items-center" title="选择当前筛选结果">
+              <input
+                type="checkbox"
+                checked={allFilteredSelected}
+                onChange={(event) => {
+                  const next = new Set(selected);
+                  filtered.forEach((guest) => {
+                    if (event.target.checked) next.add(guest.id);
+                    else next.delete(guest.id);
+                  });
+                  setSelected(next);
+                }}
+                aria-label="选择当前筛选结果"
+              />
+            </label>
             <span>宾客</span>
             <span>归属</span>
             <span>关系</span>
@@ -178,8 +205,21 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
           {filtered.map((guest) => (
             <div
               key={guest.id}
-              className="hover:bg-muted/35 grid min-w-[940px] grid-cols-[1.4fr_.6fr_1fr_.45fr_.7fr_.6fr_.6fr_1fr_1fr] items-center gap-3 border-b px-6 py-4 text-xs last:border-0"
+              className="hover:bg-muted/35 grid min-w-[1080px] grid-cols-[.25fr_1.4fr_.6fr_1fr_.45fr_.7fr_.6fr_.6fr_1fr_1fr] items-center gap-3 border-b px-6 py-4 text-sm last:border-0"
             >
+              <label className="grid place-items-center">
+                <input
+                  type="checkbox"
+                  checked={selected.has(guest.id)}
+                  onChange={(event) => {
+                    const next = new Set(selected);
+                    if (event.target.checked) next.add(guest.id);
+                    else next.delete(guest.id);
+                    setSelected(next);
+                  }}
+                  aria-label={`选择${guest.name}`}
+                />
+              </label>
               <span className="flex items-center gap-2">
                 <i className="bg-secondary text-secondary-foreground grid size-8 place-items-center rounded-full not-italic">
                   <UsersRound className="size-3.5" />
@@ -334,7 +374,7 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
                 }
               />
             </label>
-            <div className="flex flex-wrap gap-4 text-xs">
+            <div className="flex flex-wrap gap-4 text-sm">
               {(["confirmed", "hasGift", "needsAccommodation"] as const).map(
                 (key) => (
                   <label key={key} className="flex items-center gap-2">

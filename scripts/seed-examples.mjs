@@ -26,7 +26,7 @@ if (existing) {
 const settings = client.prepare("SELECT * FROM settings WHERE id = 1").get();
 const photography = client
   .prepare("SELECT * FROM items WHERE name = ? AND is_default = 1")
-  .get("摄影");
+  .get("婚礼摄影");
 if (!settings || !photography)
   throw new Error("请先执行数据库迁移和默认项目初始化");
 if (
@@ -153,11 +153,13 @@ try {
 
   const source = {
     categories: client
-      .prepare("SELECT id, name FROM item_categories ORDER BY sort_order, id")
+      .prepare(
+        "SELECT id, name, hidden FROM item_categories ORDER BY sort_order, id",
+      )
       .all(),
     items: client
       .prepare(
-        "SELECT id, category_id AS categoryId, name, status, mode, fixed_cents AS fixedCents, selected_option_id AS selectedOptionId FROM items ORDER BY sort_order, id",
+        "SELECT id, category_id AS categoryId, name, status, mode, fixed_cents AS fixedCents, selected_option_id AS selectedOptionId, hidden FROM items ORDER BY sort_order, id",
       )
       .all(),
     options: client

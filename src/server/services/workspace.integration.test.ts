@@ -18,6 +18,88 @@ execFileSync(process.execPath, ["scripts/bootstrap.mjs"], {
 afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
 describe("本地备婚流程", () => {
+  it("使用精简默认模板，并区分默认与自定义节点的隐藏和删除规则", async () => {
+    const service = await import("./workspace");
+    const { getPlanData } = await import("@/server/repositories/workspace");
+
+    const initial = getPlanData();
+    expect(initial.categories).toHaveLength(11);
+    expect(initial.categories.every((entry) => entry.isDefault)).toBe(true);
+    expect(initial.categories.every((entry) => !entry.hidden)).toBe(true);
+    expect(initial.categories.some((entry) => entry.name === "其他服务")).toBe(
+      false,
+    );
+    expect(initial.items).toHaveLength(16);
+    expect(initial.items.filter((item) => item.isDefault)).toHaveLength(16);
+    expect(
+      initial.items
+        .filter(
+          (item) =>
+            item.categoryId ===
+            initial.categories.find((entry) => entry.name === "四大金刚")!.id,
+        )
+        .map((item) => item.name),
+    ).toEqual(["主持人", "新娘跟妆", "婚礼摄影", "婚礼摄像"]);
+
+    const defaultCategory = initial.categories[0]!;
+    const defaultItem = initial.items[0]!;
+    expect((await service.deleteItemCategory(defaultCategory.id)).ok).toBe(
+      false,
+    );
+    expect(
+      (
+        await service.saveItemCategory({
+          id: defaultCategory.id,
+          name: "不能改名的默认分类",
+        })
+      ).ok,
+    ).toBe(false);
+    expect((await service.deleteItem(defaultItem.id)).ok).toBe(false);
+    expect(
+      (await service.setItemCategoryHidden(defaultCategory.id, true)).ok,
+    ).toBe(true);
+    expect((await service.setItemHidden(defaultItem.id, true)).ok).toBe(true);
+    let changed = getPlanData();
+    expect(
+      changed.categories.find((entry) => entry.id === defaultCategory.id)
+        ?.hidden,
+    ).toBe(true);
+    expect(
+      changed.items.find((item) => item.id === defaultItem.id)?.hidden,
+    ).toBe(true);
+    expect(
+      (await service.setItemCategoryHidden(defaultCategory.id, false)).ok,
+    ).toBe(true);
+    expect((await service.setItemHidden(defaultItem.id, false)).ok).toBe(true);
+
+    const customCategory = await service.saveItemCategory({
+      id: null,
+      name: "测试自定义分类",
+    });
+    expect(customCategory.ok).toBe(true);
+    if (!customCategory.ok) return;
+    const customItem = await service.saveItem({
+      id: null,
+      categoryId: customCategory.id!,
+      name: "测试自定义子项目",
+      status: "not_started",
+      mode: "fixed",
+      fixedAmount: "0",
+      description: "",
+      note: "",
+    });
+    expect(customItem.ok).toBe(true);
+    if (!customItem.ok) return;
+    expect((await service.deleteItemCategory(customCategory.id!)).ok).toBe(
+      true,
+    );
+    changed = getPlanData();
+    expect(
+      changed.categories.some((entry) => entry.id === customCategory.id),
+    ).toBe(false);
+    expect(changed.items.some((item) => item.id === customItem.id)).toBe(false);
+  });
+
   it("保存当前选择为独立快照，后续改价不会改写快照", async () => {
     const service = await import("./workspace");
     const { getWorkspaceData } =
@@ -67,7 +149,7 @@ describe("本地备婚流程", () => {
     });
     expect(fixed.ok).toBe(true);
 
-    const photo = initial.items.find((item) => item.name === "摄影")!;
+    const photo = initial.items.find((item) => item.name === "婚礼摄影")!;
     expect(
       (
         await service.saveItem({
@@ -134,5 +216,49 @@ describe("本地备婚流程", () => {
           line.snapshotId === saved.id && line.sourceItemId === photo.id,
       ),
     ).toMatchObject({ choiceName: "双机", amountCents: 680000 });
+  });
+
+  it("整份替换宾客名单，并支持批量删除", async () => {
+    const service = await import("./workspace");
+    const { getGuestData } = await import("@/server/repositories/workspace");
+
+    expect(
+      (
+        await service.replaceGuests([
+          {
+            name: "张三一家",
+            side: "groom",
+            relation: "同学",
+            people: 3,
+            confirmed: true,
+            hasGift: true,
+            needsAccommodation: false,
+            note: "",
+          },
+          {
+            name: "李四",
+            side: "bride",
+            relation: "同事",
+            people: 1,
+            confirmed: false,
+            hasGift: false,
+            needsAccommodation: true,
+            note: "单人间",
+          },
+        ])
+      ).ok,
+    ).toBe(true);
+    let imported = getGuestData().guests;
+    expect(imported).toHaveLength(2);
+    expect(imported.reduce((sum, guest) => sum + guest.people, 0)).toBe(4);
+
+    expect((await service.replaceGuests([])).ok).toBe(false);
+    expect(getGuestData().guests).toHaveLength(2);
+
+    expect(
+      (await service.deleteGuests(imported.map((guest) => guest.id))).ok,
+    ).toBe(true);
+    imported = getGuestData().guests;
+    expect(imported).toHaveLength(0);
   });
 });

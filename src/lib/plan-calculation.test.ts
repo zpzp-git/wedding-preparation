@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   currentLines,
   currentTotal,
+  hasPlanLineChoice,
   type PlanSource,
 } from "./plan-calculation";
 
@@ -77,5 +78,36 @@ describe("当前方案金额", () => {
     changed.options[0]!.amountCents = 900000;
     expect(currentLines(changed)[0]!.amountCents).toBe(0);
     expect(saved[0]!.amountCents).toBe(680000);
+  });
+
+  it("已选候选方案会点亮方案链路，空金额固定项保持待选择", () => {
+    const lines = currentLines(source);
+    expect(hasPlanLineChoice(lines[0]!)).toBe(true);
+    expect(
+      hasPlanLineChoice({
+        ...lines[3]!,
+        status: "not_started",
+        amountCents: 0,
+      }),
+    ).toBe(false);
+    expect(
+      hasPlanLineChoice({
+        ...lines[3]!,
+        status: "confirmed",
+        amountCents: 0,
+      }),
+    ).toBe(true);
+  });
+
+  it("隐藏的分类和项目不会进入当前方案", () => {
+    const hiddenCategory = structuredClone(source);
+    hiddenCategory.categories[0]!.hidden = true;
+    expect(currentLines(hiddenCategory)).toHaveLength(0);
+
+    const hiddenItem = structuredClone(source);
+    hiddenItem.items[0]!.hidden = true;
+    const lines = currentLines(hiddenItem);
+    expect(lines.some((line) => line.sourceItemId === 1)).toBe(false);
+    expect(currentTotal(lines)).toBe(280000);
   });
 });

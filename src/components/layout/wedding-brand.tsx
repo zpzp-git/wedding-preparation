@@ -98,18 +98,18 @@ export function WeddingBrand({
         <span className="group-hover:text-primary min-w-0 flex-1 transition-colors">
           {names && namesFitOnOneLine ? (
             <span className="font-editorial flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
-              <span className="text-[16px] font-semibold">{names.groom}</span>
+              <span className="text-base font-semibold">{names.groom}</span>
               <span
                 aria-hidden="true"
                 className="text-primary font-serif text-lg italic"
               >
                 &amp;
               </span>
-              <span className="text-[16px] font-semibold">{names.bride}</span>
+              <span className="text-base font-semibold">{names.bride}</span>
             </span>
           ) : names ? (
             <span className="font-editorial block min-w-0">
-              <span className="block text-[16px] leading-5 font-semibold break-all">
+              <span className="block text-base leading-5 font-semibold break-all">
                 {names.groom}
               </span>
               <span className="mt-0.5 flex min-w-0 items-start gap-1.5">
@@ -119,7 +119,7 @@ export function WeddingBrand({
                 >
                   &amp;
                 </span>
-                <span className="min-w-0 text-[16px] leading-5 font-semibold break-all">
+                <span className="min-w-0 text-base leading-5 font-semibold break-all">
                   {names.bride}
                 </span>
               </span>
@@ -241,7 +241,7 @@ export function WeddingBrand({
             </div>
           </div>
 
-          <p className="text-muted-foreground mt-4 text-[11px]">
+          <p className="text-muted-foreground mt-4 text-xs">
             信息保存在本地数据库，可随时修改。
           </p>
           {error ? (

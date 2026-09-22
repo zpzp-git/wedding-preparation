@@ -9,7 +9,6 @@ import {
   Car,
   Check,
   ChevronDown,
-  Copy,
   Equal,
   Gift,
   GitCompareArrows,
@@ -30,7 +29,7 @@ import { useMutation } from "@/components/shared/use-mutation";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { PlanData, SnapshotsData } from "@/server/repositories/workspace";
-import type { PlanLine } from "@/lib/plan-calculation";
+import { hasPlanLineChoice, type PlanLine } from "@/lib/plan-calculation";
 
 type PlanId = string;
 type Line = Omit<PlanLine, "sourceItemId"> & { sourceItemId: number | null };
@@ -39,6 +38,7 @@ type Plan = { id: PlanId; name: string; color: string; lines: Line[] };
 type Selection = {
   name: string;
   price: number;
+  selected: boolean;
   confirmed: boolean;
   signature: string;
 };
@@ -108,11 +108,27 @@ function groupFor(line: Line) {
   if (line.categoryName === "婚宴酒店") return "venue";
   if (line.categoryName === "婚庆策划" || line.categoryName === "其他服务")
     return "planning";
-  if (line.itemName === "摄影" || line.categoryName === "婚纱照")
+  if (
+    line.itemName === "摄影" ||
+    line.itemName === "婚礼跟拍（照片）" ||
+    line.itemName === "婚礼摄影" ||
+    line.categoryName === "婚纱照"
+  )
     return "photo";
-  if (line.itemName === "摄像") return "film";
+  if (
+    line.itemName === "摄像" ||
+    line.itemName === "婚礼跟拍（视频）" ||
+    line.itemName === "婚礼摄像"
+  )
+    return "film";
   if (line.categoryName === "婚纱礼服") return "dress";
-  if (line.itemName === "主持" || line.itemName === "化妆") return "host";
+  if (
+    line.itemName === "主持" ||
+    line.itemName === "主持人" ||
+    line.itemName === "化妆" ||
+    line.itemName === "新娘跟妆"
+  )
+    return "host";
   if (line.categoryName === "婚车与接亲") return "car";
   return "gift";
 }
@@ -152,15 +168,14 @@ export function PlanComparison({
     const lines = plan(planId).lines.filter(
       (line) => groupFor(line) === category.id,
     );
-    const chosen = lines.filter(
-      (line) => line.included && line.amountCents > 0,
-    );
+    const chosen = lines.filter(hasPlanLineChoice);
     const first = chosen[0];
     return {
       name: first
         ? `${first.choiceName === "固定金额" ? first.itemName : first.choiceName}${chosen.length > 1 ? ` 等 ${chosen.length} 项` : ""}`
         : "尚未选择",
       price: lines.reduce((sum, line) => sum + line.amountCents, 0) / 100,
+      selected: chosen.length > 0,
       confirmed: lines.some(
         (line) => line.status === "confirmed" || line.status === "completed",
       ),
@@ -196,13 +211,11 @@ export function PlanComparison({
     )?.sourceItemId ??
     currentLines.find((line) => groupFor(line) === selectedCategory.id)
       ?.sourceItemId;
-  const isDirty = false;
   const saveCurrentPlan = () => {
     setSnapshotName(`婚礼方案 ${data.snapshots.length + 1}`);
     mutation.setError("");
     saveDialog.current?.showModal();
   };
-  const duplicateCurrentPlan = saveCurrentPlan;
 
   if (compareMode) {
     const leftPlan = plan(base);
@@ -265,7 +278,7 @@ export function PlanComparison({
           <div className="from-primary/[.07] mt-6 grid gap-5 rounded-[24px] bg-linear-to-r to-[#9B8AFB]/[.08] p-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center sm:p-6">
             <PlanTotal name={leftPlan.name} total={totalFor(base)} />
             <div className="text-center">
-              <p className="text-muted-foreground text-[9px] tracking-[0.16em] uppercase">
+              <p className="text-muted-foreground text-xs tracking-[0.16em] uppercase">
                 预算变化
               </p>
               <p
@@ -289,7 +302,7 @@ export function PlanComparison({
         <section className="mt-8">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-xs">
                 {visibleCategories.length} 个环节
               </p>
               <h2 className="font-editorial mt-1 text-2xl">差异明细</h2>
@@ -315,7 +328,7 @@ export function PlanComparison({
           </div>
 
           <div className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
-            <div className="text-muted-foreground hidden grid-cols-[1fr_1.35fr_40px_1.35fr_100px] gap-4 border-b px-6 py-4 text-[9px] tracking-[0.16em] uppercase lg:grid">
+            <div className="text-muted-foreground hidden grid-cols-[1fr_1.35fr_40px_1.35fr_100px] gap-4 border-b px-6 py-4 text-xs tracking-[0.16em] uppercase lg:grid">
               <span>婚礼环节</span>
               <span>{leftPlan.name}</span>
               <span />
@@ -383,15 +396,6 @@ export function PlanComparison({
             <Button
               variant="outline"
               size="lg"
-              onClick={duplicateCurrentPlan}
-              disabled={mutation.pending}
-            >
-              <Copy />
-              另存为新方案
-            </Button>
-            <Button
-              variant="outline"
-              size="lg"
               onClick={() => setCompareMode(true)}
               disabled={visiblePlans.length < 2}
             >
@@ -404,7 +408,7 @@ export function PlanComparison({
               disabled={mutation.pending}
             >
               <Save />
-              保存方案
+              保存当前为快照
             </Button>
           </div>
         }
@@ -415,15 +419,17 @@ export function PlanComparison({
         </p>
       )}
 
-      <section className="relative overflow-hidden rounded-[36px] bg-[#302B38] text-white shadow-[0_22px_60px_rgba(59,48,82,.15)]">
-        <div className="absolute -top-40 -left-24 size-[420px] rounded-full bg-[#F27C8D]/10 blur-[90px]" />
-        <div className="absolute -right-20 -bottom-52 size-[480px] rounded-full bg-[#9B8AFB]/12 blur-[100px]" />
+      <section className="paper-grain relative overflow-hidden rounded-[36px] bg-[#302B38] text-white shadow-[0_30px_90px_rgba(59,48,82,.22)]">
+        <div className="absolute -top-40 -left-24 size-[420px] rounded-full bg-[#F27C8D]/15 blur-[90px]" />
+        <div className="absolute -right-20 -bottom-52 size-[480px] rounded-full bg-[#9B8AFB]/20 blur-[100px]" />
+        <div className="hairline-grid absolute inset-0 opacity-[.08]" />
+        <div className="absolute top-10 left-1/2 h-px w-1/2 -translate-x-1/2 bg-linear-to-r from-transparent via-white/25 to-transparent" />
 
         <div className="relative z-10 border-b border-white/10 p-5 sm:p-7 lg:px-9">
           <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="block min-w-[260px] rounded-[20px] border border-white/10 bg-white/[.06] p-3.5 backdrop-blur-xl">
-                <span className="mb-1.5 block text-[10px] text-white/50">
+                <span className="mb-1.5 block text-xs text-white/50">
                   当前整体方案
                 </span>
                 <span className="relative flex items-center">
@@ -443,27 +449,15 @@ export function PlanComparison({
                   <ChevronDown className="pointer-events-none absolute right-0 size-4 text-white/40" />
                 </span>
               </label>
-              <span
-                className={cn(
-                  "mb-1 inline-flex w-fit items-center gap-2 rounded-full border px-3 py-2 text-[10px]",
-                  isDirty
-                    ? "border-[#FFB07C]/25 bg-[#FFB07C]/10 text-[#FFD0B0]"
-                    : "border-white/10 bg-white/[.05] text-white/50",
-                )}
-              >
-                <i
-                  className={cn(
-                    "size-1.5 rounded-full",
-                    isDirty ? "bg-[#FFB07C]" : "bg-[#8FD6C2]",
-                  )}
-                />
+              <span className="mb-1 inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/[.05] px-3 py-2 text-xs text-white/50">
+                <i className="size-1.5 rounded-full bg-[#8FD6C2]" />
                 {activePlan === "current" ? "当前方案自动保存" : "已保存的快照"}
               </span>
             </div>
 
             <div className="flex flex-wrap items-end gap-8 sm:gap-12">
               <div>
-                <p className="text-[10px] text-white/50">预计总预算</p>
+                <p className="text-xs text-white/50">预计总预算</p>
                 <motion.p
                   key={`${activePlan}-${totalFor(activePlan)}`}
                   initial={{ opacity: 0, y: 6 }}
@@ -476,7 +470,7 @@ export function PlanComparison({
               </div>
               <div className="min-w-[170px]">
                 <div className="flex items-end justify-between">
-                  <p className="text-[10px] text-white/50">已确认环节</p>
+                  <p className="text-xs text-white/50">已确认环节</p>
                   <p className="font-editorial text-lg">
                     {confirmedFor(activePlan)}
                     <span className="ml-1 text-xs text-white/50">
@@ -489,7 +483,7 @@ export function PlanComparison({
                     animate={{
                       width: `${(confirmedFor(activePlan) / categories.length) * 100}%`,
                     }}
-                    className="from-primary h-full rounded-full bg-linear-to-r to-[#9B8AFB]"
+                    className="from-primary h-full rounded-full bg-linear-to-r to-[#9B8AFB] shadow-[0_0_14px_rgba(242,124,141,.8)]"
                   />
                 </div>
               </div>
@@ -500,21 +494,25 @@ export function PlanComparison({
         <div className="relative z-10 p-5 sm:p-7 lg:px-9 lg:pb-10">
           <div className="mb-7 flex items-center justify-between">
             <div>
-              <p className="text-[11px] text-white/55">
+              <p className="text-xs text-white/55">
                 {categories.length} 个环节
               </p>
               <h2 className="font-editorial mt-1.5 text-xl text-white/90">
                 {activePlanData.name} · 环节总览
               </h2>
             </div>
-            <div className="hidden items-center gap-5 text-[10px] text-white/40 sm:flex">
+            <div className="hidden items-center gap-5 text-xs text-white/40 sm:flex">
               <span className="flex items-center gap-2">
-                <i className="from-primary size-2 rounded-full bg-linear-to-br to-[#9B8AFB]" />
+                <i className="from-primary size-2 rounded-full bg-linear-to-br to-[#9B8AFB] shadow-[0_0_10px_#F27C8D]" />
                 已确认
               </span>
               <span className="flex items-center gap-2">
+                <i className="size-2 rounded-full border border-[#C5BBFF] bg-[#8E7AE8]/55 shadow-[0_0_12px_#9B8AFB]" />
+                已选择
+              </span>
+              <span className="flex items-center gap-2">
                 <i className="size-2 rounded-full border border-white/25 bg-white/5" />
-                待确认
+                待选择
               </span>
             </div>
           </div>
@@ -532,6 +530,19 @@ export function PlanComparison({
                   <stop offset="48%" stopColor="#9B8AFB" />
                   <stop offset="100%" stopColor="#8FD6C2" />
                 </linearGradient>
+                <filter
+                  id="route-glow"
+                  x="-20%"
+                  y="-50%"
+                  width="140%"
+                  height="200%"
+                >
+                  <feGaussianBlur stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
               <path
                 d="M165 70 H1035 Q1090 70 1090 125 V235 Q1090 290 1035 290 H165"
@@ -543,8 +554,23 @@ export function PlanComparison({
                 d="M165 70 H1035 Q1090 70 1090 125 V235 Q1090 290 1035 290 H165"
                 fill="none"
                 stroke="url(#route-gradient)"
-                strokeWidth="2"
-                opacity=".55"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                filter="url(#route-glow)"
+                opacity=".9"
+              />
+              <motion.path
+                d="M165 70 H1035 Q1090 70 1090 125 V235 Q1090 290 1035 290 H165"
+                fill="none"
+                stroke="rgba(255,255,255,.72)"
+                strokeWidth="1.2"
+                strokeLinecap="round"
+                strokeDasharray="8 28"
+                filter="url(#route-glow)"
+                initial={{ strokeDashoffset: 0 }}
+                animate={{ strokeDashoffset: -72 }}
+                transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
+                opacity=".62"
               />
             </svg>
 
@@ -594,8 +620,10 @@ export function PlanComparison({
                     className={cn(
                       "relative z-10 grid size-9 shrink-0 place-items-center rounded-full border",
                       selection.confirmed
-                        ? "border-white/50 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB]"
-                        : "border-white/15 bg-[#302E38] text-white/30",
+                        ? "border-white/50 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB] shadow-[0_0_22px_rgba(155,138,251,.65)]"
+                        : selection.selected
+                          ? "border-[#B9AEFF]/70 bg-[#65578A]/80 text-white shadow-[0_0_22px_rgba(155,138,251,.55)]"
+                          : "border-white/20 bg-[#302E38] text-white/40",
                     )}
                   >
                     <Icon className="size-3.5" />
@@ -604,11 +632,20 @@ export function PlanComparison({
                     <span className="block text-xs font-medium">
                       {category.name}
                     </span>
-                    <span className="mt-0.5 block truncate text-[10px] text-white/35">
+                    <span
+                      className={cn(
+                        "mt-0.5 block truncate text-xs",
+                        selection.confirmed
+                          ? "text-white/65"
+                          : selection.selected
+                            ? "text-white/55"
+                            : "text-white/38",
+                      )}
+                    >
                       {selection.name}
                     </span>
                   </span>
-                  <span className="text-[9px] text-white/25">0{index + 1}</span>
+                  <span className="text-xs text-white/25">0{index + 1}</span>
                 </button>
               );
             })}
@@ -632,7 +669,7 @@ export function PlanComparison({
               <selectedCategory.icon className="size-5" />
             </span>
             <div>
-              <p className="text-muted-foreground text-[11px]">
+              <p className="text-muted-foreground text-xs">
                 婚礼环节 ·{" "}
                 {categories.findIndex(
                   (item) => item.id === selectedCategory.id,
@@ -642,7 +679,7 @@ export function PlanComparison({
               <h3 className="font-editorial mt-1 text-2xl">
                 {selectedCategory.name}
               </h3>
-              <p className="text-muted-foreground mt-2 max-w-sm text-[11px] leading-5">
+              <p className="text-muted-foreground mt-2 max-w-sm text-xs">
                 {selectedCategory.description}
               </p>
             </div>
@@ -650,25 +687,25 @@ export function PlanComparison({
 
           <div className="grid gap-3 sm:grid-cols-[1fr_150px]">
             <label className="bg-muted/55 rounded-2xl px-4 py-3">
-              <span className="text-muted-foreground mb-1.5 block text-[9px] tracking-[0.14em] uppercase">
+              <span className="text-muted-foreground mb-1.5 block text-xs tracking-[0.14em] uppercase">
                 当前选择
               </span>
-              <span className="relative flex items-center">
-                <select
-                  value={selectedChoice.name}
-                  onChange={() => {}}
-                  disabled
-                  className="w-full appearance-none bg-transparent pr-7 text-xs font-medium outline-none"
-                >
-                  <option value={selectedChoice.name}>
-                    {selectedChoice.name}
-                  </option>
-                </select>
-                <ChevronDown className="text-muted-foreground pointer-events-none absolute right-0 size-3.5" />
+              <span className="flex items-center gap-2 text-xs font-medium">
+                <span
+                  className={cn(
+                    "size-2 rounded-full",
+                    selectedChoice.confirmed
+                      ? "bg-primary"
+                      : selectedChoice.selected
+                        ? "bg-[#9B8AFB]"
+                        : "bg-muted-foreground/30",
+                  )}
+                />
+                {selectedChoice.name}
               </span>
             </label>
             <div className="bg-muted/55 rounded-2xl px-4 py-3">
-              <p className="text-muted-foreground text-[9px] tracking-[0.14em] uppercase">
+              <p className="text-muted-foreground text-xs tracking-[0.14em] uppercase">
                 当前预算
               </p>
               <p className="font-editorial mt-1 text-lg">
@@ -706,7 +743,11 @@ export function PlanComparison({
               }
             >
               <Check />
-              {selectedChoice.confirmed ? "已确认" : "确认这一项"}
+              {activePlan !== "current"
+                ? "在当前方案中调整"
+                : selectedChoice.confirmed
+                  ? "已确认"
+                  : "确认这一项"}
             </Button>
           </div>
         </div>
@@ -803,21 +844,51 @@ function ChainNode({
         className={cn(
           "relative grid size-[70px] place-items-center rounded-full border transition-all duration-500",
           selection.confirmed
-            ? "border-white/55 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB] text-white shadow-[0_8px_20px_rgba(155,138,251,.2)]"
-            : "border-white/15 bg-[#302E38] text-white/40",
-          active && "ring-1 ring-white/70 ring-offset-4 ring-offset-[#302B38]",
+            ? "border-white/55 bg-linear-to-br from-[#F27C8D] to-[#9B8AFB] text-white shadow-[0_0_18px_rgba(242,124,141,.55),0_0_46px_rgba(155,138,251,.38)]"
+            : selection.selected
+              ? "border-[#AA9BF7]/75 bg-[#574A76]/90 text-white shadow-[0_0_18px_rgba(155,138,251,.58),0_0_52px_rgba(155,138,251,.4)]"
+              : "border-white/20 bg-[#302E38] text-white/38 shadow-[inset_0_0_22px_rgba(255,255,255,.035)]",
+          active &&
+            "shadow-[0_0_24px_rgba(242,124,141,.65),0_0_68px_rgba(155,138,251,.52)] ring-1 ring-white/80 ring-offset-8 ring-offset-[#302B38]",
         )}
       >
+        {selection.selected ? (
+          <motion.i
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-[-10px] rounded-full border not-italic",
+              selection.confirmed
+                ? "border-[#F7B4BE]/35"
+                : "border-[#BFB4FF]/30",
+            )}
+            animate={{ scale: [1, 1.13, 1], opacity: [0.45, 0.8, 0.45] }}
+            transition={{ duration: 2.8, repeat: Infinity, ease: "easeInOut" }}
+          />
+        ) : null}
+        <i className="absolute inset-[7px] rounded-full border border-white/10 not-italic" />
         <Icon className="relative z-10 size-5" />
-        <i className="absolute -top-1 -right-1 grid size-5 place-items-center rounded-full border border-white/15 bg-[#25232B] text-[8px] text-white/45 not-italic">
+        <i className="absolute -top-1 -right-1 grid size-6 place-items-center rounded-full border border-white/15 bg-[#25232B] text-xs text-white/45 not-italic">
           0{number}
         </i>
       </span>
       <span className="mt-4 block text-xs font-medium text-white/90">
         {category.name}
       </span>
-      <span className="mt-1 block max-w-[165px] truncate text-[9px] text-white/35">
-        {selection.confirmed ? selection.name : "待确认 · " + selection.name}
+      <span
+        className={cn(
+          "mt-1 block max-w-[165px] truncate text-xs",
+          selection.confirmed
+            ? "text-white/65"
+            : selection.selected
+              ? "text-white/55"
+              : "text-white/38",
+        )}
+      >
+        {selection.confirmed
+          ? `已确认 · ${selection.name}`
+          : selection.selected
+            ? `已选择 · ${selection.name}`
+            : "待选择"}
       </span>
     </motion.button>
   );
@@ -838,7 +909,7 @@ function ComparisonSelect({
 }) {
   return (
     <label className="bg-muted/55 block rounded-2xl p-4">
-      <span className="text-muted-foreground mb-1.5 block text-[9px] tracking-[0.16em] uppercase">
+      <span className="text-muted-foreground mb-1.5 block text-xs tracking-[0.16em] uppercase">
         {label}
       </span>
       <span className="relative flex items-center">
@@ -870,7 +941,7 @@ function PlanTotal({
 }) {
   return (
     <div className={align === "right" ? "sm:text-right" : undefined}>
-      <p className="text-muted-foreground text-[10px]">{name}</p>
+      <p className="text-muted-foreground text-xs">{name}</p>
       <p className="font-editorial mt-1 text-2xl">¥ {format(total)}</p>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Bell, CalendarDays } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 
 import { AppNavigation } from "./app-navigation";
 import { WeddingBrand } from "./wedding-brand";
@@ -16,16 +16,15 @@ export function AppShell({ children, date, settings }: AppShellProps) {
   return (
     <div className="min-h-svh">
       <header className="bg-background/90 sticky top-0 z-50 border-b backdrop-blur-xl md:hidden">
-        <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <div className="flex items-center gap-3 px-4 py-3">
           <WeddingBrand compact settings={settings} />
-          <Bell className="text-muted-foreground size-5 shrink-0" />
         </div>
         <div className="scrollbar-none overflow-x-auto px-2 pb-2">
           <AppNavigation orientation="horizontal" />
         </div>
       </header>
 
-      <div className="mx-auto grid min-h-svh max-w-[1680px] md:grid-cols-[246px_minmax(0,1fr)]">
+      <div className="grid min-h-svh w-full md:grid-cols-[246px_minmax(0,1fr)]">
         <aside className="bg-sidebar/65 sticky top-0 hidden h-svh border-r px-4 py-6 backdrop-blur-2xl md:flex md:flex-col">
           <div className="mb-10 px-2">
             <WeddingBrand settings={settings} />
@@ -36,7 +35,7 @@ export function AppShell({ children, date, settings }: AppShellProps) {
             <div className="border-primary/15 from-primary/[.08] overflow-hidden rounded-[22px] border bg-linear-to-br to-[#9B8AFB]/[.08] p-4">
               <div className="text-primary mb-6 flex items-center justify-between">
                 <CalendarDays className="size-4" />
-                <span className="text-[10px]">婚礼日期</span>
+                <span className="text-xs">婚礼日期</span>
               </div>
               <p className="font-editorial text-2xl">{date.weddingDateShort}</p>
               <div className="border-primary/15 mt-3 border-t pt-3">

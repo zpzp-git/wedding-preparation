@@ -42,7 +42,8 @@ export function AppNavigation({ orientation }: AppNavigationProps) {
     >
       {navigationItems.map((item) => {
         const Icon = navigationIcons[item.icon];
-        const isActive = pathname === item.href;
+        const isActive =
+          pathname === item.href || pathname.startsWith(`${item.href}/`);
 
         return (
           <Link
@@ -50,7 +51,7 @@ export function AppNavigation({ orientation }: AppNavigationProps) {
             href={item.href}
             aria-current={isActive ? "page" : undefined}
             className={cn(
-              "group relative flex h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-[13px] font-medium transition-all duration-300",
+              "group relative flex h-10 shrink-0 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-all duration-300",
               isActive
                 ? "bg-primary/[.08] text-primary"
                 : "text-muted-foreground hover:bg-sidebar-accent/80 hover:text-foreground",

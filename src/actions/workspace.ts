@@ -30,6 +30,9 @@ export async function saveSettings(
 export async function saveItem(input: Parameters<typeof service.saveItem>[0]) {
   return mutate(() => service.saveItem(input));
 }
+export async function setItemHidden(id: number, hidden: boolean) {
+  return mutate(() => service.setItemHidden(id, hidden));
+}
 export async function deleteItem(id: number) {
   return mutate(() => service.deleteItem(id));
 }
@@ -46,6 +49,17 @@ export async function deleteOption(id: number) {
 }
 export async function selectOption(itemId: number, optionId: number | null) {
   return mutate(() => service.selectOption(itemId, optionId));
+}
+export async function saveItemCategory(
+  input: Parameters<typeof service.saveItemCategory>[0],
+) {
+  return mutate(() => service.saveItemCategory(input));
+}
+export async function setItemCategoryHidden(id: number, hidden: boolean) {
+  return mutate(() => service.setItemCategoryHidden(id, hidden));
+}
+export async function deleteItemCategory(id: number) {
+  return mutate(() => service.deleteItemCategory(id));
 }
 export async function saveResourceCategory(
   input: Parameters<typeof service.saveResourceCategory>[0],
@@ -73,6 +87,14 @@ export async function saveGuest(
 }
 export async function deleteGuest(id: number) {
   return mutate(() => service.deleteGuest(id));
+}
+export async function deleteGuests(ids: number[]) {
+  return mutate(() => service.deleteGuests(ids));
+}
+export async function replaceGuests(
+  input: Parameters<typeof service.replaceGuests>[0],
+) {
+  return mutate(() => service.replaceGuests(input));
 }
 export async function saveSnapshot(name: string) {
   return mutate(() => service.saveSnapshot(name));

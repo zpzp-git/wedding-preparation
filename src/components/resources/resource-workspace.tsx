@@ -12,7 +12,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   deleteResource,
@@ -38,14 +38,26 @@ type ResourceForm = {
 };
 type CategoryForm = { id: number | null; name: string };
 
-export function ResourceWorkspace({ data }: { data: ResourceData }) {
+export function ResourceWorkspace({
+  data,
+  initialResourceId,
+}: {
+  data: ResourceData;
+  initialResourceId?: number;
+}) {
+  const initialResource = data.resources.find(
+    (entry) => entry.id === initialResourceId,
+  );
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<number | null>(null);
-  const [form, setForm] = useState<ResourceForm | null>(null);
+  const [form, setForm] = useState<ResourceForm | null>(
+    initialResource ? { ...initialResource } : null,
+  );
   const [categoryForm, setCategoryForm] = useState<CategoryForm | null>(null);
   const [showCategories, setShowCategories] = useState(false);
   const resourceDialog = useRef<HTMLDialogElement>(null);
   const categoryDialog = useRef<HTMLDialogElement>(null);
+  const autoOpenedId = useRef<number | undefined>(undefined);
   const mutation = useMutation();
   const filtered = data.resources.filter(
     (resource) =>
@@ -82,6 +94,17 @@ export function ResourceWorkspace({ data }: { data: ResourceData }) {
     mutation.setError("");
     categoryDialog.current?.showModal();
   };
+
+  useEffect(() => {
+    if (
+      !initialResourceId ||
+      !initialResource ||
+      autoOpenedId.current === initialResourceId
+    )
+      return;
+    autoOpenedId.current = initialResourceId;
+    resourceDialog.current?.showModal();
+  }, [initialResource, initialResourceId]);
 
   return (
     <div className="mx-auto max-w-[1380px] pb-16">

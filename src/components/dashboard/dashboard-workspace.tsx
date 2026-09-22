@@ -61,9 +61,7 @@ export function DashboardWorkspace({
     })),
   ];
   const tasks = data.items
-    .filter(
-      (item) => !["confirmed", "completed", "not_needed"].includes(item.status),
-    )
+    .filter((item) => !["confirmed", "completed"].includes(item.status))
     .slice(0, 3)
     .map((item, index) => ({
       title: item.name,
@@ -84,7 +82,6 @@ export function DashboardWorkspace({
       (item) => item.status === "comparing" || item.status === "researching",
     ).length,
     pending: data.items.filter((item) => item.status === "not_started").length,
-    unused: data.items.filter((item) => item.status === "not_needed").length,
   };
   const progressed = counts.confirmed + counts.comparing;
   const percent = data.items.length
@@ -113,7 +110,7 @@ export function DashboardWorkspace({
     <div className="mx-auto max-w-[1380px] pb-14">
       <div className="mb-8 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-primary/70 mb-2 flex items-center gap-2 text-[11px] font-medium tracking-[0.08em]">
+          <div className="text-primary/70 mb-2 flex items-center gap-2 text-xs font-medium tracking-[0.08em]">
             <Sparkles className="size-3" /> {date.todayLabel}
           </div>
           <h1 className="font-editorial text-3xl leading-tight font-medium tracking-[-0.04em] sm:text-4xl">
@@ -138,7 +135,7 @@ export function DashboardWorkspace({
           className="text-primary-foreground paper-grain from-primary relative min-h-[316px] overflow-hidden rounded-[32px] bg-linear-to-br via-[#ed83aa] to-[#9B8AFB] p-6 shadow-[0_22px_60px_rgba(155,138,251,.2)] sm:p-8"
         >
           <div className="relative z-10 flex h-full flex-col justify-between gap-12">
-            <span className="w-fit rounded-full border border-white/20 bg-white/8 px-3 py-1.5 text-[10px] tracking-[0.2em] uppercase">
+            <span className="w-fit rounded-full border border-white/20 bg-white/8 px-3 py-1.5 text-xs tracking-[0.2em] uppercase">
               Our wedding day
             </span>
             <div>
@@ -223,7 +220,7 @@ export function DashboardWorkspace({
                   {percent}
                 </strong>
                 <span className="text-muted-foreground text-xs">%</span>
-                <p className="text-muted-foreground mt-1 text-[9px]">
+                <p className="text-muted-foreground mt-1 text-xs">
                   {progressed} / {data.items.length} 项
                 </p>
               </div>
@@ -241,7 +238,6 @@ export function DashboardWorkspace({
                   dot: "bg-[#FFB07C]",
                 },
                 { label: "待开始", value: counts.pending, dot: "bg-[#D9D4E2]" },
-                { label: "不需要", value: counts.unused, dot: "bg-[#E9E5EC]" },
               ].map((item) => (
                 <div
                   key={item.label}
@@ -310,11 +306,11 @@ export function DashboardWorkspace({
                     <span className="block text-sm font-medium">
                       {task.title}
                     </span>
-                    <span className="text-muted-foreground mt-1 block truncate text-[11px]">
+                    <span className="text-muted-foreground mt-1 block truncate text-xs">
                       {task.meta}
                     </span>
                   </span>
-                  <span className="text-muted-foreground shrink-0 text-[11px]">
+                  <span className="text-muted-foreground shrink-0 text-xs">
                     {task.status}
                   </span>
                   <ChevronRight className="text-muted-foreground size-4 opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
@@ -339,7 +335,7 @@ export function DashboardWorkspace({
                 当前方案估算
               </p>
             </div>
-            <span className="bg-secondary text-secondary-foreground flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px]">
+            <span className="bg-secondary text-secondary-foreground flex items-center gap-1 rounded-full px-2.5 py-1 text-xs">
               <TrendingDown className="size-3" />
               {budget > 0
                 ? currentPrice <= budget
@@ -396,12 +392,10 @@ export function DashboardWorkspace({
                     className="bg-primary absolute inset-x-5 top-0 h-0.5 rounded-full"
                   />
                 ) : null}
-                <span className="block text-[11px] font-medium">
-                  {plan.name}
-                </span>
+                <span className="block text-xs font-medium">{plan.name}</span>
                 <span
                   className={cn(
-                    "mt-1 block text-[9px]",
+                    "mt-1 block text-xs",
                     plan.id === "current"
                       ? "text-primary"
                       : "text-muted-foreground",

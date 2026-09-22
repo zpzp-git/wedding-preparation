@@ -6,6 +6,10 @@ import {
   ChevronRight,
   Check,
   Circle,
+  Eye,
+  EyeOff,
+  FolderPlus,
+  MoreHorizontal,
   Pencil,
   Plus,
   Search,
@@ -16,11 +20,15 @@ import { useMemo, useRef, useState } from "react";
 
 import {
   deleteItem,
+  deleteItemCategory,
   deleteOption,
   moveItem,
   saveItem,
+  saveItemCategory,
   saveOption,
   selectOption,
+  setItemCategoryHidden,
+  setItemHidden,
 } from "@/actions/workspace";
 import { PageHeading } from "@/components/shared/page-heading";
 import { useMutation } from "@/components/shared/use-mutation";
@@ -33,7 +41,6 @@ const statuses = [
   ["comparing", "对比中"],
   ["confirmed", "已确定"],
   ["completed", "已完成"],
-  ["not_needed", "不需要"],
 ] as const;
 const yuan = (cents: number) => (cents / 100).toFixed(2);
 const price = (cents: number) =>
@@ -60,6 +67,7 @@ type OptionForm = {
   content: string;
   note: string;
 };
+type CategoryForm = { id: number | null; name: string };
 
 export function PlannerWorkspace({
   data,
@@ -70,17 +78,20 @@ export function PlannerWorkspace({
 }) {
   const [activeId, setActiveId] = useState(
     data.items.find((item) => item.id === initialItemId)?.id ??
-      data.items.find((item) => item.name === "摄影")?.id ??
+      data.items.find((item) => item.name === "婚礼摄影")?.id ??
       data.items[0]?.id ??
       0,
   );
   const [query, setQuery] = useState("");
+  const [menuKey, setMenuKey] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<number[]>(
     data.categories.map((category) => category.id),
   );
   const [itemForm, setItemForm] = useState<ItemForm | null>(null);
+  const [categoryForm, setCategoryForm] = useState<CategoryForm | null>(null);
   const [optionForm, setOptionForm] = useState<OptionForm | null>(null);
   const itemDialog = useRef<HTMLDialogElement>(null);
+  const categoryDialog = useRef<HTMLDialogElement>(null);
   const optionDialog = useRef<HTMLDialogElement>(null);
   const mutation = useMutation();
   const active =
@@ -98,7 +109,7 @@ export function PlannerWorkspace({
     [data.resources],
   );
 
-  const openItem = (item?: typeof active) => {
+  const openItem = (item?: typeof active, preferredCategoryId?: number) => {
     setItemForm(
       item
         ? {
@@ -113,7 +124,11 @@ export function PlannerWorkspace({
           }
         : {
             id: null,
-            categoryId: category?.id ?? data.categories[0]?.id ?? 0,
+            categoryId:
+              preferredCategoryId ??
+              category?.id ??
+              data.categories[0]?.id ??
+              0,
             name: "",
             status: "not_started",
             mode: "fixed",
@@ -124,6 +139,11 @@ export function PlannerWorkspace({
     );
     mutation.setError("");
     itemDialog.current?.showModal();
+  };
+  const openCategory = (entry?: PlanData["categories"][number]) => {
+    setCategoryForm({ id: entry?.id ?? null, name: entry?.name ?? "" });
+    mutation.setError("");
+    categoryDialog.current?.showModal();
   };
   const openOption = (option?: (typeof options)[number]) => {
     if (!active) return;
@@ -151,6 +171,50 @@ export function PlannerWorkspace({
     mutation.setError("");
     optionDialog.current?.showModal();
   };
+  const setItemVisibility = (
+    item: PlanData["items"][number],
+    hidden: boolean,
+  ) => {
+    setMenuKey(null);
+    mutation.run(() => setItemHidden(item.id, hidden));
+  };
+  const setCategoryVisibility = (
+    entry: PlanData["categories"][number],
+    hidden: boolean,
+  ) => {
+    setMenuKey(null);
+    mutation.run(() => setItemCategoryHidden(entry.id, hidden));
+  };
+  const removeItem = (item: PlanData["items"][number]) => {
+    const optionCount = data.options.filter(
+      (option) => option.itemId === item.id,
+    ).length;
+    const detail = optionCount ? `，以及其中的 ${optionCount} 个候选方案` : "";
+    if (!window.confirm(`删除「${item.name}」${detail}？`)) return;
+    setMenuKey(null);
+    mutation.run(
+      () => deleteItem(item.id),
+      () =>
+        setActiveId(
+          data.items.find((candidate) => candidate.id !== item.id)?.id ?? 0,
+        ),
+    );
+  };
+  const removeCategory = (entry: PlanData["categories"][number]) => {
+    const itemCount = data.items.filter(
+      (item) => item.categoryId === entry.id,
+    ).length;
+    const detail = itemCount ? `及其中的 ${itemCount} 个项目` : "";
+    if (!window.confirm(`删除分类「${entry.name}」${detail}？`)) return;
+    setMenuKey(null);
+    mutation.run(
+      () => deleteItemCategory(entry.id),
+      () =>
+        setActiveId(
+          data.items.find((item) => item.categoryId !== entry.id)?.id ?? 0,
+        ),
+    );
+  };
 
   return (
     <div className="mx-auto max-w-[1380px] pb-16">
@@ -159,10 +223,16 @@ export function PlannerWorkspace({
         title="婚礼项目"
         description="逐项安排婚礼，比较候选方案并记录当前选择。"
         action={
-          <Button size="lg" onClick={() => openItem()}>
-            <Plus />
-            添加婚礼项目
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="lg" onClick={() => openCategory()}>
+              <FolderPlus />
+              添加分类
+            </Button>
+            <Button size="lg" onClick={() => openItem()}>
+              <Plus />
+              添加婚礼项目
+            </Button>
+          </div>
         }
       />
       <div className="grid min-h-[720px] gap-4 xl:grid-cols-[330px_minmax(0,1fr)]">
@@ -179,6 +249,14 @@ export function PlannerWorkspace({
             </label>
           </div>
           <div className="max-h-[680px] overflow-y-auto p-3">
+            {menuKey && (
+              <button
+                type="button"
+                aria-label="关闭操作菜单"
+                onClick={() => setMenuKey(null)}
+                className="fixed inset-0 z-20 cursor-default"
+              />
+            )}
             {data.categories.map((entry) => {
               const children = data.items.filter(
                 (item) =>
@@ -190,49 +268,212 @@ export function PlannerWorkspace({
                 (item) =>
                   item.status === "confirmed" || item.status === "completed",
               ).length;
+              const categoryMenuKey = `category-${entry.id}`;
               return (
                 <div key={entry.id} className="mb-1">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setExpanded((current) =>
-                        open
-                          ? current.filter((id) => id !== entry.id)
-                          : [...current, entry.id],
-                      )
-                    }
-                    className="hover:bg-muted/60 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left"
-                  >
-                    <ChevronDown
-                      className={`text-muted-foreground size-3.5 transition-transform ${open ? "" : "-rotate-90"}`}
-                    />
-                    <span className="flex-1 text-xs font-medium">
-                      {entry.name}
-                    </span>
-                    <span className="text-muted-foreground text-[10px]">
-                      {done} / {children.length}
-                    </span>
-                  </button>
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMenuKey(null);
+                        setExpanded((current) =>
+                          open
+                            ? current.filter((id) => id !== entry.id)
+                            : [...current, entry.id],
+                        );
+                      }}
+                      className={`hover:bg-muted/60 flex w-full items-center gap-2 rounded-xl px-3 py-2.5 pr-10 text-left ${entry.hidden ? "opacity-55" : ""}`}
+                    >
+                      <ChevronDown
+                        className={`text-muted-foreground size-3.5 transition-transform ${open ? "" : "-rotate-90"}`}
+                      />
+                      <span className="flex min-w-0 flex-1 items-center gap-2 text-xs font-medium">
+                        <span className="truncate">{entry.name}</span>
+                        {entry.hidden && (
+                          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs">
+                            已隐藏
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-muted-foreground text-xs">
+                        {done} / {children.length}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`管理分类${entry.name}`}
+                      aria-haspopup="menu"
+                      aria-expanded={menuKey === categoryMenuKey}
+                      onClick={() =>
+                        setMenuKey((current) =>
+                          current === categoryMenuKey ? null : categoryMenuKey,
+                        )
+                      }
+                      className="hover:bg-card absolute top-1/2 right-1.5 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-full opacity-40 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                    >
+                      <MoreHorizontal className="size-4" />
+                    </button>
+                    {menuKey === categoryMenuKey && (
+                      <div
+                        role="menu"
+                        className="bg-card border-border absolute top-10 right-1 z-30 w-44 rounded-2xl border p-1.5 text-xs shadow-xl"
+                      >
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setMenuKey(null);
+                            openItem(undefined, entry.id);
+                          }}
+                          className="hover:bg-muted flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                        >
+                          <Plus className="size-3.5" />
+                          添加子项目
+                        </button>
+                        {!entry.isDefault && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setMenuKey(null);
+                              openCategory(entry);
+                            }}
+                            className="hover:bg-muted flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                          >
+                            <Pencil className="size-3.5" />
+                            编辑分类
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          disabled={mutation.pending}
+                          onClick={() =>
+                            setCategoryVisibility(entry, !entry.hidden)
+                          }
+                          className="hover:bg-muted flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                        >
+                          {entry.hidden ? (
+                            <Eye className="size-3.5" />
+                          ) : (
+                            <EyeOff className="size-3.5" />
+                          )}
+                          {entry.hidden ? "显示分类" : "隐藏分类"}
+                        </button>
+                        {!entry.isDefault && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => removeCategory(entry)}
+                            className="text-destructive hover:bg-destructive/8 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                          >
+                            <Trash2 className="size-3.5" />
+                            删除分类
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   {open && (
                     <div className="ml-4 border-l py-1 pl-3">
-                      {children.map((item) => (
+                      {children.map((item) => {
+                        const itemMenuKey = `item-${item.id}`;
+                        return (
+                          <div key={item.id} className="group relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveId(item.id);
+                                setMenuKey(null);
+                              }}
+                              className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 pr-9 text-left text-xs ${active?.id === item.id ? "bg-primary/8 text-primary" : "text-muted-foreground hover:bg-muted/50"} ${item.hidden ? "opacity-55" : ""}`}
+                            >
+                              <span className="min-w-0 flex-1 truncate">
+                                {item.name}
+                              </span>
+                              {item.hidden ? (
+                                <EyeOff className="size-3.5" />
+                              ) : item.status === "confirmed" ||
+                                item.status === "completed" ? (
+                                <Check className="size-3.5" />
+                              ) : (
+                                <Circle className="size-2.5 opacity-40" />
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              aria-label={`管理${item.name}`}
+                              aria-haspopup="menu"
+                              aria-expanded={menuKey === itemMenuKey}
+                              onClick={() => {
+                                setActiveId(item.id);
+                                setMenuKey((current) =>
+                                  current === itemMenuKey ? null : itemMenuKey,
+                                );
+                              }}
+                              className="hover:bg-card absolute top-1/2 right-1.5 z-10 grid size-7 -translate-y-1/2 place-items-center rounded-full opacity-40 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+                            >
+                              <MoreHorizontal className="size-4" />
+                            </button>
+                            {menuKey === itemMenuKey && (
+                              <div
+                                role="menu"
+                                className="bg-card border-border absolute top-9 right-1 z-20 w-40 rounded-2xl border p-1.5 text-xs shadow-xl"
+                              >
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  onClick={() => {
+                                    setMenuKey(null);
+                                    openItem(item);
+                                  }}
+                                  className="hover:bg-muted flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                                >
+                                  <Pencil className="size-3.5" />
+                                  编辑项目
+                                </button>
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={mutation.pending}
+                                  onClick={() =>
+                                    setItemVisibility(item, !item.hidden)
+                                  }
+                                  className="hover:bg-muted flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                                >
+                                  {item.hidden ? (
+                                    <Eye className="size-3.5" />
+                                  ) : (
+                                    <EyeOff className="size-3.5" />
+                                  )}
+                                  {item.hidden ? "显示项目" : "隐藏项目"}
+                                </button>
+                                {!item.isDefault && (
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    onClick={() => removeItem(item)}
+                                    className="text-destructive hover:bg-destructive/8 flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left"
+                                  >
+                                    <Trash2 className="size-3.5" />
+                                    删除项目
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {children.length === 0 && (
                         <button
-                          key={item.id}
                           type="button"
-                          onClick={() => setActiveId(item.id)}
-                          className={`flex w-full items-center gap-2 rounded-xl px-3 py-2.5 text-left text-xs ${active?.id === item.id ? "bg-primary/8 text-primary" : "text-muted-foreground hover:bg-muted/50"}`}
+                          onClick={() => openItem(undefined, entry.id)}
+                          className="text-muted-foreground hover:text-foreground flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-xs"
                         >
-                          <span className="min-w-0 flex-1 truncate">
-                            {item.name}
-                          </span>
-                          {item.status === "confirmed" ||
-                          item.status === "completed" ? (
-                            <Check className="size-3.5" />
-                          ) : (
-                            <Circle className="size-2.5 opacity-40" />
-                          )}
+                          <Plus className="size-3" />
+                          添加第一个项目
                         </button>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
@@ -248,7 +489,9 @@ export function PlannerWorkspace({
                   <div>
                     <p className="text-muted-foreground text-xs">
                       {category?.name} ·{" "}
-                      {statuses.find(([key]) => key === active.status)?.[1]}
+                      {statuses.find(([key]) => key === active.status)?.[1] ??
+                        "未开始"}
+                      {(active.hidden || category?.hidden) && " · 已隐藏"}
                     </p>
                     <h2 className="font-editorial mt-2 text-3xl">
                       {active.name}
@@ -262,21 +505,18 @@ export function PlannerWorkspace({
                       <Pencil />
                       编辑项目
                     </Button>
+                    <Button
+                      variant="outline"
+                      disabled={mutation.pending}
+                      onClick={() => setItemVisibility(active, !active.hidden)}
+                    >
+                      {active.hidden ? <Eye /> : <EyeOff />}
+                      {active.hidden ? "显示项目" : "隐藏项目"}
+                    </Button>
                     {!active.isDefault && (
                       <Button
                         variant="outline"
-                        onClick={() => {
-                          if (window.confirm(`删除「${active.name}」？`))
-                            mutation.run(
-                              () => deleteItem(active.id),
-                              () =>
-                                setActiveId(
-                                  data.items.find(
-                                    (item) => item.id !== active.id,
-                                  )?.id ?? 0,
-                                ),
-                            );
-                        }}
+                        onClick={() => removeItem(active)}
                       >
                         <Trash2 />
                         删除
@@ -290,8 +530,8 @@ export function PlannerWorkspace({
                     {active.mode === "fixed" ? "固定金额" : "方案对比"}
                   </span>
                   <span className="text-muted-foreground ml-auto">
-                    {active.status === "not_needed"
-                      ? "不计入当前总额"
+                    {active.hidden || category?.hidden
+                      ? "已隐藏，不计入当前总额"
                       : active.mode === "options"
                         ? selected
                           ? `当前选择：${selected.name}`
@@ -338,7 +578,7 @@ export function PlannerWorkspace({
                         key={option.id}
                         className={`bg-card min-w-[280px] flex-1 snap-start rounded-[28px] border p-5 sm:min-w-[300px] ${selected?.id === option.id ? "border-primary/45 shadow-[0_18px_50px_rgba(155,138,251,.12)]" : "border-border/70"}`}
                       >
-                        <p className="text-muted-foreground text-[11px]">
+                        <p className="text-muted-foreground text-xs">
                           {option.resourceId
                             ? resourceNames.get(option.resourceId)
                             : "未关联资源"}
@@ -429,6 +669,46 @@ export function PlannerWorkspace({
         </main>
       </div>
       <dialog
+        ref={categoryDialog}
+        className="bg-card text-foreground border-border m-auto w-[min(94vw,440px)] rounded-[28px] border p-0 shadow-2xl backdrop:bg-black/35"
+      >
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (categoryForm)
+              mutation.run(
+                () => saveItemCategory(categoryForm),
+                (result) => {
+                  categoryDialog.current?.close();
+                  if (result.id)
+                    setExpanded((current) =>
+                      current.includes(result.id!)
+                        ? current
+                        : [...current, result.id!],
+                    );
+                },
+              );
+          }}
+          className="p-6 sm:p-8"
+        >
+          <DialogTitle
+            title={categoryForm?.id ? "编辑分类" : "添加婚礼分类"}
+            onClose={() => categoryDialog.current?.close()}
+          />
+          <div className="mt-5">
+            <TextField
+              label="分类名称"
+              value={categoryForm?.name ?? ""}
+              onChange={(name) =>
+                setCategoryForm((old) => old && { ...old, name })
+              }
+              required
+            />
+          </div>
+          <FormFooter pending={mutation.pending} error={mutation.error} />
+        </form>
+      </dialog>
+      <dialog
         ref={itemDialog}
         className="bg-card text-foreground border-border m-auto w-[min(94vw,520px)] rounded-[28px] border p-0 shadow-2xl backdrop:bg-black/35"
       >
@@ -473,6 +753,7 @@ export function PlannerWorkspace({
                 {data.categories.map((entry) => (
                   <option key={entry.id} value={entry.id}>
                     {entry.name}
+                    {entry.hidden ? "（已隐藏）" : ""}
                   </option>
                 ))}
               </select>

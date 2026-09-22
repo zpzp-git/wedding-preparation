@@ -33,7 +33,7 @@ try {
     client.prepare("SELECT id FROM item_categories LIMIT 1").get() === undefined
   ) {
     const insertCategory = client.prepare(
-      "INSERT INTO item_categories (name, sort_order) VALUES (?, ?)",
+      "INSERT INTO item_categories (name, is_default, sort_order) VALUES (?, 1, ?)",
     );
     const insertItem = client.prepare(
       "INSERT INTO items (category_id, name, is_default, sort_order) VALUES (?, ?, 1, ?)",

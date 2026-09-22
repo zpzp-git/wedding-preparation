@@ -12,6 +12,10 @@ export const settings = sqliteTable("settings", {
 export const itemCategories = sqliteTable("item_categories", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull().unique(),
+  isDefault: integer("is_default", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  hidden: integer("hidden", { mode: "boolean" }).notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
@@ -43,6 +47,7 @@ export const items = sqliteTable("items", {
   isDefault: integer("is_default", { mode: "boolean" })
     .notNull()
     .default(false),
+  hidden: integer("hidden", { mode: "boolean" }).notNull().default(false),
   sortOrder: integer("sort_order").notNull().default(0),
 });
 

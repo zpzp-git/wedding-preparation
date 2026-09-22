@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq, max } from "drizzle-orm";
+import { and, eq, inArray, max } from "drizzle-orm";
 import { z } from "zod";
 
 import { db } from "@/db";
@@ -154,9 +154,107 @@ export async function deleteItem(itemId: number): Promise<Result> {
     id.parse(itemId);
     const item = db.select().from(items).where(eq(items.id, itemId)).get();
     if (!item) fail("项目不存在");
-    if (item.isDefault) fail("默认项目可设为不需要，不能删除");
+    if (item.isDefault) fail("默认项目可以隐藏，但不能删除");
     db.delete(items).where(eq(items.id, itemId)).run();
   });
+}
+
+export async function setItemHidden(
+  itemId: number,
+  hidden: boolean,
+): Promise<Result> {
+  return perform(() => {
+    id.parse(itemId);
+    z.boolean().parse(hidden);
+    if (!db.select().from(items).where(eq(items.id, itemId)).get())
+      fail("项目不存在");
+    db.update(items).set({ hidden }).where(eq(items.id, itemId)).run();
+  });
+}
+
+export async function saveItemCategory(input: {
+  id: number | null;
+  name: string;
+}): Promise<Result> {
+  return perform(() => {
+    const value = z.object({ id: optionalId, name: required }).parse(input);
+    const duplicate = db
+      .select()
+      .from(itemCategories)
+      .where(eq(itemCategories.name, value.name))
+      .get();
+    if (duplicate && duplicate.id !== value.id) fail("分类名称已存在");
+    if (value.id) {
+      const category = db
+        .select()
+        .from(itemCategories)
+        .where(eq(itemCategories.id, value.id))
+        .get();
+      if (!category) fail("分类不存在");
+      if (category.isDefault) fail("默认分类可以隐藏，但不能编辑");
+      db.update(itemCategories)
+        .set({ name: value.name })
+        .where(eq(itemCategories.id, value.id))
+        .run();
+      return value.id;
+    }
+    const largest =
+      db
+        .select({ value: max(itemCategories.sortOrder) })
+        .from(itemCategories)
+        .get()?.value ?? -1;
+    return db
+      .insert(itemCategories)
+      .values({ name: value.name, sortOrder: largest + 1 })
+      .returning({ id: itemCategories.id })
+      .get().id;
+  });
+}
+
+export async function setItemCategoryHidden(
+  categoryId: number,
+  hidden: boolean,
+): Promise<Result> {
+  return perform(() => {
+    id.parse(categoryId);
+    z.boolean().parse(hidden);
+    if (
+      !db
+        .select()
+        .from(itemCategories)
+        .where(eq(itemCategories.id, categoryId))
+        .get()
+    )
+      fail("分类不存在");
+    db.update(itemCategories)
+      .set({ hidden })
+      .where(eq(itemCategories.id, categoryId))
+      .run();
+  });
+}
+
+export async function deleteItemCategory(categoryId: number): Promise<Result> {
+  return perform(() =>
+    db.transaction((tx) => {
+      id.parse(categoryId);
+      const category = tx
+        .select()
+        .from(itemCategories)
+        .where(eq(itemCategories.id, categoryId))
+        .get();
+      if (!category) fail("分类不存在");
+      if (category.isDefault) fail("默认分类可以隐藏，但不能删除");
+      const children = tx
+        .select()
+        .from(items)
+        .where(eq(items.categoryId, categoryId))
+        .all();
+      if (children.some((item) => item.isDefault))
+        fail("分类中包含默认项目，请先移回默认分类");
+      tx.delete(items).where(eq(items.categoryId, categoryId)).run();
+      tx.delete(itemCategories).where(eq(itemCategories.id, categoryId)).run();
+    }),
+  );
 }
 
 export async function moveItem(
@@ -448,6 +546,7 @@ const guestInput = z.object({
   needsAccommodation: z.boolean(),
   note: detail,
 });
+const guestReplaceInput = guestInput.omit({ id: true });
 export async function saveGuest(
   input: z.input<typeof guestInput>,
 ): Promise<Result> {
@@ -470,6 +569,29 @@ export async function deleteGuest(guestId: number): Promise<Result> {
     id.parse(guestId);
     db.delete(guests).where(eq(guests.id, guestId)).run();
   });
+}
+
+export async function deleteGuests(guestIds: number[]): Promise<Result> {
+  return perform(() =>
+    db.transaction((tx) => {
+      const values = z.array(id).min(1).max(2000).parse(guestIds);
+      tx.delete(guests)
+        .where(inArray(guests.id, [...new Set(values)]))
+        .run();
+    }),
+  );
+}
+
+export async function replaceGuests(
+  input: z.input<typeof guestReplaceInput>[],
+): Promise<Result> {
+  return perform(() =>
+    db.transaction((tx) => {
+      const values = z.array(guestReplaceInput).min(1).max(2000).parse(input);
+      tx.delete(guests).run();
+      tx.insert(guests).values(values).run();
+    }),
+  );
 }
 
 export async function saveSnapshot(name: string): Promise<Result> {
