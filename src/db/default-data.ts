@@ -25,16 +25,3 @@ export const defaultComparisonItemNames: readonly string[] = [
   "婚纱照拍摄套餐",
   "酒水饮料",
 ];
-
-export const defaultResourceCategories = [
-  "婚宴酒店",
-  "婚庆策划",
-  "摄影",
-  "摄像",
-  "主持",
-  "化妆",
-  "婚纱礼服",
-  "婚车",
-  "喜糖礼品",
-  "其他",
-] as const;

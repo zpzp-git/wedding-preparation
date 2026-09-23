@@ -8,12 +8,21 @@ export const metadata: Metadata = { title: "管理资源" };
 export default async function ManageResourcesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ resource?: string | string[] }>;
+  searchParams: Promise<{
+    resource?: string | string[];
+    item?: string | string[];
+  }>;
 }) {
   const params = await searchParams;
   const resource =
     typeof params.resource === "string" ? Number(params.resource) : undefined;
+  const item =
+    typeof params.item === "string" ? Number(params.item) : undefined;
   return (
-    <ResourceWorkspace data={getResourceData()} initialResourceId={resource} />
+    <ResourceWorkspace
+      data={getResourceData()}
+      initialResourceId={resource}
+      initialComparisonItemId={item}
+    />
   );
 }

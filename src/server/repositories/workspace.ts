@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { db } from "@/db";
 import {
@@ -8,7 +8,6 @@ import {
   itemCategories,
   items,
   options,
-  resourceCategories,
   resources,
   settings,
   snapshotItems,
@@ -33,7 +32,11 @@ export function getPlanData() {
       .orderBy(asc(options.sortOrder), asc(options.id))
       .all(),
     resources: db
-      .select({ id: resources.id, name: resources.name })
+      .select({
+        id: resources.id,
+        name: resources.name,
+        comparisonItemId: resources.comparisonItemId,
+      })
       .from(resources)
       .orderBy(asc(resources.id))
       .all(),
@@ -42,10 +45,27 @@ export function getPlanData() {
 
 export function getResourceData() {
   return {
-    resourceCategories: db
-      .select()
-      .from(resourceCategories)
-      .orderBy(asc(resourceCategories.sortOrder), asc(resourceCategories.id))
+    comparisonItems: db
+      .select({
+        id: items.id,
+        name: items.name,
+        categoryName: itemCategories.name,
+      })
+      .from(items)
+      .innerJoin(itemCategories, eq(items.categoryId, itemCategories.id))
+      .where(
+        and(
+          eq(items.mode, "options"),
+          eq(items.hidden, false),
+          eq(itemCategories.hidden, false),
+        ),
+      )
+      .orderBy(
+        asc(itemCategories.sortOrder),
+        asc(itemCategories.id),
+        asc(items.sortOrder),
+        asc(items.id),
+      )
       .all(),
     resources: db.select().from(resources).orderBy(asc(resources.id)).all(),
   };

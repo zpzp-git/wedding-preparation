@@ -22,7 +22,8 @@ afterAll(() => rmSync(directory, { recursive: true, force: true }));
 describe("本地备婚流程", () => {
   it("使用精简默认模板，并区分默认与自定义节点的隐藏和删除规则", async () => {
     const service = await import("./workspace");
-    const { getPlanData } = await import("@/server/repositories/workspace");
+    const { getPlanData, getResourceData } =
+      await import("@/server/repositories/workspace");
 
     const initial = getPlanData();
     expect(initial.categories).toHaveLength(11);
@@ -106,6 +107,40 @@ describe("本地备婚流程", () => {
     });
     expect(customItem.ok).toBe(true);
     if (!customItem.ok) return;
+    expect(
+      getResourceData().comparisonItems.some(
+        (item) => item.id === customItem.id,
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await service.saveItem({
+          id: customItem.id!,
+          categoryId: customCategory.id!,
+          name: "测试自定义子项目",
+          status: "not_started",
+          mode: "options",
+          fixedAmount: "0",
+          description: "",
+          note: "",
+        })
+      ).ok,
+    ).toBe(true);
+    expect(
+      getResourceData().comparisonItems.some(
+        (item) => item.id === customItem.id,
+      ),
+    ).toBe(true);
+    const linkedResource = await service.saveResource({
+      id: null,
+      comparisonItemId: customItem.id!,
+      name: "测试待归类资源",
+      contact: "",
+      phone: "",
+      address: "",
+      note: "",
+    });
+    expect(linkedResource.ok).toBe(true);
     expect((await service.deleteItemCategory(customCategory.id!)).ok).toBe(
       true,
     );
@@ -114,6 +149,14 @@ describe("本地备婚流程", () => {
       changed.categories.some((entry) => entry.id === customCategory.id),
     ).toBe(false);
     expect(changed.items.some((item) => item.id === customItem.id)).toBe(false);
+    if (linkedResource.ok) {
+      expect(
+        getResourceData().resources.find(
+          (resource) => resource.id === linkedResource.id,
+        )?.comparisonItemId,
+      ).toBeNull();
+      expect((await service.deleteResource(linkedResource.id!)).ok).toBe(true);
+    }
   });
 
   it("保存当前选择为独立快照，后续改价不会改写快照", async () => {
@@ -124,12 +167,21 @@ describe("本地备婚流程", () => {
       await import("@/lib/plan-calculation");
 
     const initial = getWorkspaceData();
-    const photoCategory = initial.resourceCategories.find(
-      (entry) => entry.name === "摄影",
-    )!;
+    const photo = initial.items.find((item) => item.name === "婚礼摄影")!;
+    const fixedResource = await service.saveResource({
+      id: null,
+      comparisonItemId: initial.items.find((item) => item.mode === "fixed")!.id,
+      name: "不应保存的固定项目资源",
+      contact: "",
+      phone: "",
+      address: "",
+      note: "",
+    });
+    expect(fixedResource.ok).toBe(false);
+
     const resource = await service.saveResource({
       id: null,
-      categoryId: photoCategory.id,
+      comparisonItemId: photo.id,
       name: "测试摄影工作室",
       contact: "联系人",
       phone: "",
@@ -137,6 +189,19 @@ describe("本地备婚流程", () => {
       note: "",
     });
     expect(resource.ok).toBe(true);
+    const video = initial.items.find((item) => item.name === "婚礼摄像")!;
+    const flexibleOption = await service.saveOption({
+      id: null,
+      itemId: video.id,
+      resourceId: resource.ok ? resource.id! : null,
+      name: "跨分类关联测试",
+      amount: "0",
+      content: "",
+      note: "",
+    });
+    expect(flexibleOption.ok).toBe(true);
+    if (flexibleOption.ok)
+      expect((await service.deleteOption(flexibleOption.id!)).ok).toBe(true);
     const guest = await service.saveGuest({
       id: null,
       name: "测试宾客",
@@ -166,7 +231,6 @@ describe("本地备婚流程", () => {
     });
     expect(fixed.ok).toBe(true);
 
-    const photo = initial.items.find((item) => item.name === "婚礼摄影")!;
     expect(
       (
         await service.saveItem({

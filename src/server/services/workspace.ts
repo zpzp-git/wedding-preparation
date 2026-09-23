@@ -9,7 +9,6 @@ import {
   itemCategories,
   items,
   options,
-  resourceCategories,
   resources,
   settings,
   snapshots,
@@ -407,92 +406,9 @@ export async function selectOption(
   );
 }
 
-export async function saveResourceCategory(input: {
-  id: number | null;
-  name: string;
-}): Promise<Result> {
-  return perform(() => {
-    const value = z.object({ id: optionalId, name: required }).parse(input);
-    if (value.id) {
-      if (
-        !db
-          .select()
-          .from(resourceCategories)
-          .where(eq(resourceCategories.id, value.id))
-          .get()
-      )
-        fail("分类不存在");
-      db.update(resourceCategories)
-        .set({ name: value.name })
-        .where(eq(resourceCategories.id, value.id))
-        .run();
-      return value.id;
-    }
-    const largest =
-      db
-        .select({ value: max(resourceCategories.sortOrder) })
-        .from(resourceCategories)
-        .get()?.value ?? -1;
-    return db
-      .insert(resourceCategories)
-      .values({ name: value.name, sortOrder: largest + 1 })
-      .returning({ id: resourceCategories.id })
-      .get().id;
-  });
-}
-
-export async function deleteResourceCategory(
-  categoryId: number,
-): Promise<Result> {
-  return perform(() => {
-    id.parse(categoryId);
-    if (
-      db
-        .select()
-        .from(resources)
-        .where(eq(resources.categoryId, categoryId))
-        .limit(1)
-        .get()
-    )
-      fail("分类仍有资源，请先移动或删除资源");
-    db.delete(resourceCategories)
-      .where(eq(resourceCategories.id, categoryId))
-      .run();
-  });
-}
-
-export async function moveResourceCategory(
-  categoryId: number,
-  direction: -1 | 1,
-): Promise<Result> {
-  return perform(() =>
-    db.transaction((tx) => {
-      id.parse(categoryId);
-      if (direction !== -1 && direction !== 1) fail("排序方向无效");
-      const all = tx
-        .select()
-        .from(resourceCategories)
-        .orderBy(resourceCategories.sortOrder, resourceCategories.id)
-        .all();
-      const position = all.findIndex((entry) => entry.id === categoryId);
-      if (position < 0) fail("分类不存在");
-      const other = all[position + direction];
-      if (!other) return;
-      tx.update(resourceCategories)
-        .set({ sortOrder: other.sortOrder })
-        .where(eq(resourceCategories.id, categoryId))
-        .run();
-      tx.update(resourceCategories)
-        .set({ sortOrder: all[position]!.sortOrder })
-        .where(eq(resourceCategories.id, other.id))
-        .run();
-    }),
-  );
-}
-
 const resourceInput = z.object({
   id: optionalId,
-  categoryId: id,
+  comparisonItemId: id,
   name: required,
   contact: detail,
   phone: detail,
@@ -504,14 +420,26 @@ export async function saveResource(
 ): Promise<Result> {
   return perform(() => {
     const value = resourceInput.parse(input);
+    const comparisonItem = db
+      .select()
+      .from(items)
+      .where(eq(items.id, value.comparisonItemId))
+      .get();
+    const comparisonCategory = comparisonItem
+      ? db
+          .select()
+          .from(itemCategories)
+          .where(eq(itemCategories.id, comparisonItem.categoryId))
+          .get()
+      : undefined;
     if (
-      !db
-        .select()
-        .from(resourceCategories)
-        .where(eq(resourceCategories.id, value.categoryId))
-        .get()
+      !comparisonItem ||
+      comparisonItem.mode !== "options" ||
+      comparisonItem.hidden ||
+      !comparisonCategory ||
+      comparisonCategory.hidden
     )
-      fail("资源分类不存在");
+      fail("请选择当前显示的方案对比项目");
     const { id: resourceId, ...fields } = value;
     if (resourceId) {
       if (

@@ -69,10 +69,10 @@ try {
   const resourceId = Number(
     client
       .prepare(
-        "INSERT INTO resources (category_id, name, contact, phone, address, note) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO resources (comparison_item_id, name, contact, phone, address, note) VALUES (?, ?, ?, ?, ?, ?)",
       )
       .run(
-        getCategoryId("resource_categories", "摄影"),
+        photography.id,
         "示例 · 晴禾摄影工作室",
         "示例联系人",
         "",

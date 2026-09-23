@@ -61,17 +61,6 @@ export async function setItemCategoryHidden(id: number, hidden: boolean) {
 export async function deleteItemCategory(id: number) {
   return mutate(() => service.deleteItemCategory(id));
 }
-export async function saveResourceCategory(
-  input: Parameters<typeof service.saveResourceCategory>[0],
-) {
-  return mutate(() => service.saveResourceCategory(input));
-}
-export async function deleteResourceCategory(id: number) {
-  return mutate(() => service.deleteResourceCategory(id));
-}
-export async function moveResourceCategory(id: number, direction: -1 | 1) {
-  return mutate(() => service.moveResourceCategory(id, direction));
-}
 export async function saveResource(
   input: Parameters<typeof service.saveResource>[0],
 ) {

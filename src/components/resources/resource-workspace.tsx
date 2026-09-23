@@ -1,26 +1,19 @@
 "use client";
 
+import { Select } from "@base-ui/react/select";
 import {
   Building2,
-  ChevronLeft,
-  ChevronRight,
+  Check,
+  ChevronDown,
   MapPin,
-  Pencil,
   Phone,
   Plus,
   Search,
-  Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import {
-  deleteResource,
-  deleteResourceCategory,
-  moveResourceCategory,
-  saveResource,
-  saveResourceCategory,
-} from "@/actions/workspace";
+import { deleteResource, saveResource } from "@/actions/workspace";
 import { PageHeading } from "@/components/shared/page-heading";
 import { useMutation } from "@/components/shared/use-mutation";
 import { Button } from "@/components/ui/button";
@@ -29,54 +22,71 @@ import type { ResourceData } from "@/server/repositories/workspace";
 type Resource = ResourceData["resources"][number];
 type ResourceForm = {
   id: number | null;
-  categoryId: number;
+  comparisonItemId: number;
   name: string;
   contact: string;
   phone: string;
   address: string;
   note: string;
 };
-type CategoryForm = { id: number | null; name: string };
 
 export function ResourceWorkspace({
   data,
   initialResourceId,
+  initialComparisonItemId,
 }: {
   data: ResourceData;
   initialResourceId?: number;
+  initialComparisonItemId?: number;
 }) {
   const initialResource = data.resources.find(
     (entry) => entry.id === initialResourceId,
   );
+  const preferredComparisonItemId = data.comparisonItems.some(
+    (item) => item.id === initialComparisonItemId,
+  )
+    ? initialComparisonItemId
+    : undefined;
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<number | null>(null);
-  const [form, setForm] = useState<ResourceForm | null>(
-    initialResource ? { ...initialResource } : null,
+  const [filter, setFilter] = useState<number | null>(
+    preferredComparisonItemId ?? null,
   );
-  const [categoryForm, setCategoryForm] = useState<CategoryForm | null>(null);
-  const [showCategories, setShowCategories] = useState(false);
+  const [form, setForm] = useState<ResourceForm | null>(
+    initialResource
+      ? {
+          ...initialResource,
+          comparisonItemId: initialResource.comparisonItemId ?? 0,
+        }
+      : null,
+  );
   const resourceDialog = useRef<HTMLDialogElement>(null);
-  const categoryDialog = useRef<HTMLDialogElement>(null);
   const autoOpenedId = useRef<number | undefined>(undefined);
   const mutation = useMutation();
   const filtered = data.resources.filter(
     (resource) =>
-      (filter === null || resource.categoryId === filter) &&
+      (filter === null || resource.comparisonItemId === filter) &&
       [resource.name, resource.contact, resource.phone, resource.address].some(
         (value) => value.toLowerCase().includes(query.toLowerCase()),
       ),
   );
-  const categoryName = (categoryId: number) =>
-    data.resourceCategories.find((entry) => entry.id === categoryId)?.name ??
-    "未分类";
+  const comparisonItemName = (comparisonItemId: number | null) =>
+    data.comparisonItems.find((entry) => entry.id === comparisonItemId)?.name ??
+    "待归类";
 
   const openResource = (resource?: Resource) => {
     setForm(
       resource
-        ? { ...resource }
+        ? {
+            ...resource,
+            comparisonItemId: resource.comparisonItemId ?? 0,
+          }
         : {
             id: null,
-            categoryId: filter ?? data.resourceCategories[0]?.id ?? 0,
+            comparisonItemId:
+              filter ??
+              preferredComparisonItemId ??
+              data.comparisonItems[0]?.id ??
+              0,
             name: "",
             contact: "",
             phone: "",
@@ -86,13 +96,6 @@ export function ResourceWorkspace({
     );
     mutation.setError("");
     resourceDialog.current?.showModal();
-  };
-  const openCategory = (id?: number) => {
-    setCategoryForm(
-      id ? { id, name: categoryName(id) } : { id: null, name: "" },
-    );
-    mutation.setError("");
-    categoryDialog.current?.showModal();
   };
 
   useEffect(() => {
@@ -111,15 +114,19 @@ export function ResourceWorkspace({
       <PageHeading
         eyebrow={`已记录 ${data.resources.length} 家商家`}
         title="资源库"
-        description="集中维护商家、服务者及场地的联系方式和备注。"
+        description="分类自动跟随采用方案对比的婚礼项目，资源可在候选方案中重复使用。"
         action={
-          <Button size="lg" onClick={() => openResource()}>
+          <Button
+            size="lg"
+            onClick={() => openResource()}
+            disabled={data.comparisonItems.length === 0}
+          >
             <Plus />
             添加新资源
           </Button>
         }
       />
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+      <div className="mb-5">
         <label className="bg-card border-border/70 flex max-w-md flex-1 items-center gap-2 rounded-full border px-4 py-3">
           <Search className="text-muted-foreground size-4" />
           <input
@@ -129,12 +136,6 @@ export function ResourceWorkspace({
             className="min-w-0 flex-1 bg-transparent text-xs outline-none"
           />
         </label>
-        <Button
-          variant="outline"
-          onClick={() => setShowCategories((value) => !value)}
-        >
-          {showCategories ? "收起分类" : "管理分类"}
-        </Button>
       </div>
       <div className="mb-6 flex scrollbar-none gap-2 overflow-x-auto">
         <button
@@ -144,7 +145,7 @@ export function ResourceWorkspace({
         >
           全部 {data.resources.length}
         </button>
-        {data.resourceCategories.map((entry) => (
+        {data.comparisonItems.map((entry) => (
           <button
             key={entry.id}
             type="button"
@@ -154,68 +155,18 @@ export function ResourceWorkspace({
             {entry.name}{" "}
             {
               data.resources.filter(
-                (resource) => resource.categoryId === entry.id,
+                (resource) => resource.comparisonItemId === entry.id,
               ).length
             }
           </button>
         ))}
       </div>
-      {showCategories && (
-        <section className="bg-card border-border/70 mb-6 rounded-[28px] border p-5">
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="font-editorial text-xl">资源分类</h2>
-            <Button size="sm" onClick={() => openCategory()}>
-              <Plus />
-              添加分类
-            </Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {data.resourceCategories.map((entry) => (
-              <div
-                key={entry.id}
-                className="border-border flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs"
-              >
-                <span className="mr-1">{entry.name}</span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    mutation.run(() => moveResourceCategory(entry.id, -1))
-                  }
-                  aria-label={`上移${entry.name}`}
-                >
-                  <ChevronLeft className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() =>
-                    mutation.run(() => moveResourceCategory(entry.id, 1))
-                  }
-                  aria-label={`下移${entry.name}`}
-                >
-                  <ChevronRight className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => openCategory(entry.id)}
-                  aria-label={`编辑${entry.name}`}
-                >
-                  <Pencil className="size-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (window.confirm(`删除分类「${entry.name}」？`))
-                      mutation.run(() => deleteResourceCategory(entry.id));
-                  }}
-                  aria-label={`删除${entry.name}`}
-                >
-                  <Trash2 className="size-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+
+      {data.comparisonItems.length === 0 ? (
+        <p className="bg-card border-border/70 text-muted-foreground mb-4 rounded-2xl border px-4 py-3 text-xs">
+          请先在婚礼项目中把需要收集资源的子项目设为“方案对比”。
+        </p>
+      ) : null}
       {mutation.error && (
         <p role="alert" className="text-destructive mb-4 text-xs">
           {mutation.error}
@@ -231,7 +182,7 @@ export function ResourceWorkspace({
               <Building2 className="size-5" />
             </span>
             <p className="text-muted-foreground mt-6 text-xs">
-              {categoryName(resource.categoryId)}
+              {comparisonItemName(resource.comparisonItemId)}
             </p>
             <h2 className="font-editorial mt-1 text-xl">{resource.name}</h2>
             <div className="text-muted-foreground mt-5 space-y-2 text-xs">
@@ -303,24 +254,69 @@ export function ResourceWorkspace({
             onClose={() => resourceDialog.current?.close()}
           />
           <div className="mt-5 grid gap-4">
-            <label className="field">
-              分类
-              <select
-                value={form?.categoryId ?? ""}
-                onChange={(event) =>
-                  setForm(
-                    (old) =>
-                      old && { ...old, categoryId: Number(event.target.value) },
+            <div className="field">
+              <span>适用的方案对比项目</span>
+              <Select.Root
+                items={data.comparisonItems.map((entry) => ({
+                  label: entry.categoryName + " · " + entry.name,
+                  value: String(entry.id),
+                }))}
+                value={
+                  form?.comparisonItemId ? String(form.comparisonItemId) : null
+                }
+                onValueChange={(value) =>
+                  setForm((old) =>
+                    !old || !value
+                      ? old
+                      : { ...old, comparisonItemId: Number(value) },
                   )
                 }
+                required
               >
-                {data.resourceCategories.map((entry) => (
-                  <option key={entry.id} value={entry.id}>
-                    {entry.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <Select.Trigger
+                  aria-label="适用的方案对比项目"
+                  className="group border-border bg-muted/25 hover:border-primary/35 focus-visible:border-primary/55 focus-visible:ring-primary/10 data-popup-open:border-primary/45 relative flex w-full cursor-pointer items-center rounded-xl border px-3 py-2.5 text-left text-sm font-normal transition-all duration-200 outline-none focus-visible:ring-4"
+                >
+                  <Select.Value
+                    placeholder="请选择婚礼项目"
+                    className="text-foreground min-w-0 flex-1 truncate pr-8"
+                  />
+                  <Select.Icon className="pointer-events-none absolute right-3">
+                    <ChevronDown
+                      aria-hidden="true"
+                      className="text-muted-foreground/70 size-3.5 transition duration-200 group-data-[popup-open]:rotate-180"
+                    />
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal container={resourceDialog}>
+                  <Select.Positioner
+                    className="z-[80] outline-none"
+                    sideOffset={7}
+                    align="start"
+                    alignItemWithTrigger={false}
+                  >
+                    <Select.Popup className="border-border/80 bg-popover text-popover-foreground max-h-[min(var(--available-height),20rem)] min-w-[var(--anchor-width)] origin-[var(--transform-origin)] overflow-y-auto rounded-2xl border p-1.5 shadow-[0_18px_48px_rgba(72,57,89,0.18),0_4px_12px_rgba(72,57,89,0.08)] transition-[transform,opacity] duration-150 outline-none data-ending-style:scale-[0.97] data-ending-style:opacity-0 data-starting-style:scale-[0.97] data-starting-style:opacity-0">
+                      {data.comparisonItems.map((entry) => (
+                        <Select.Item
+                          key={entry.id}
+                          value={String(entry.id)}
+                          className="data-highlighted:bg-primary/10 data-selected:text-primary data-highlighted:text-foreground grid cursor-default grid-cols-[1.25rem_1fr] items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none select-none data-selected:font-medium"
+                        >
+                          <Select.ItemIndicator className="text-primary col-start-1 grid size-5 place-items-center">
+                            <span className="bg-primary grid size-4 place-items-center rounded-full text-white shadow-[0_3px_8px_rgba(242,124,141,0.25)]">
+                              <Check className="size-2.5 stroke-[3]" />
+                            </span>
+                          </Select.ItemIndicator>
+                          <Select.ItemText className="col-start-2 truncate">
+                            {entry.categoryName} · {entry.name}
+                          </Select.ItemText>
+                        </Select.Item>
+                      ))}
+                    </Select.Popup>
+                  </Select.Positioner>
+                </Select.Portal>
+              </Select.Root>
+            </div>
             {(["name", "contact", "phone", "address", "note"] as const).map(
               (key) => (
                 <label className="field" key={key}>
@@ -346,40 +342,6 @@ export function ResourceWorkspace({
               ),
             )}
           </div>
-          <Footer pending={mutation.pending} error={mutation.error} />
-        </form>
-      </dialog>
-      <dialog
-        ref={categoryDialog}
-        className="bg-card text-foreground border-border m-auto w-[min(94vw,420px)] rounded-[28px] border p-0 shadow-2xl backdrop:bg-black/35"
-      >
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (categoryForm)
-              mutation.run(
-                () => saveResourceCategory(categoryForm),
-                () => categoryDialog.current?.close(),
-              );
-          }}
-          className="p-6 sm:p-8"
-        >
-          <Title
-            title={categoryForm?.id ? "编辑资源分类" : "添加资源分类"}
-            onClose={() => categoryDialog.current?.close()}
-          />
-          <label className="field mt-5">
-            分类名称
-            <input
-              required
-              value={categoryForm?.name ?? ""}
-              onChange={(event) =>
-                setCategoryForm(
-                  (old) => old && { ...old, name: event.target.value },
-                )
-              }
-            />
-          </label>
           <Footer pending={mutation.pending} error={mutation.error} />
         </form>
       </dialog>

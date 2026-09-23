@@ -51,17 +51,11 @@ export const items = sqliteTable("items", {
   sortOrder: integer("sort_order").notNull().default(0),
 });
 
-export const resourceCategories = sqliteTable("resource_categories", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  name: text("name").notNull().unique(),
-  sortOrder: integer("sort_order").notNull().default(0),
-});
-
 export const resources = sqliteTable("resources", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  categoryId: integer("category_id")
-    .notNull()
-    .references(() => resourceCategories.id),
+  comparisonItemId: integer("comparison_item_id").references(() => items.id, {
+    onDelete: "set null",
+  }),
   name: text("name").notNull(),
   contact: text("contact").notNull().default(""),
   phone: text("phone").notNull().default(""),

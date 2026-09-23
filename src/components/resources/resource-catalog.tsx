@@ -222,9 +222,7 @@ export function ResourceCatalog({
               ) : null}
               <Button
                 nativeButton={false}
-                render={
-                  <Link href={`/resources/manage?resource=${selected.id}`} />
-                }
+                render={<Link href={`/resources?resource=${selected.id}`} />}
               >
                 编辑资料 <ArrowRight />
               </Button>

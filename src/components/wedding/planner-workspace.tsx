@@ -17,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 
 import {
   deleteItem,
@@ -102,6 +103,15 @@ export function PlannerWorkspace({
   const options = data.options.filter((option) => option.itemId === active?.id);
   const selected = options.find(
     (option) => option.id === active?.selectedOptionId,
+  );
+  const orderedResources = useMemo(
+    () =>
+      [...data.resources].sort(
+        (left, right) =>
+          Number(right.comparisonItemId === active?.id) -
+          Number(left.comparisonItemId === active?.id),
+      ),
+    [active?.id, data.resources],
   );
   const resourceNames = useMemo(
     () =>
@@ -567,10 +577,19 @@ export function PlannerWorkspace({
                         {options.length} 个方案
                       </p>
                     </div>
-                    <Button onClick={() => openOption()}>
-                      <Plus />
-                      添加候选方案
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        nativeButton={false}
+                        render={<Link href={"/resources?item=" + active.id} />}
+                      >
+                        管理可用资源
+                      </Button>
+                      <Button onClick={() => openOption()}>
+                        <Plus />
+                        添加候选方案
+                      </Button>
+                    </div>
                   </div>
                   <section className="flex snap-x gap-4 overflow-x-auto pb-2">
                     {options.map((option) => (
@@ -872,8 +891,9 @@ export function PlannerWorkspace({
                 }
               >
                 <option value="">不关联</option>
-                {data.resources.map((resource) => (
+                {orderedResources.map((resource) => (
                   <option key={resource.id} value={resource.id}>
+                    {resource.comparisonItemId === active?.id ? "推荐 · " : ""}
                     {resource.name}
                   </option>
                 ))}

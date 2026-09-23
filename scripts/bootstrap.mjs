@@ -8,7 +8,6 @@ import { migrate } from "drizzle-orm/node-sqlite/migrator";
 import {
   defaultComparisonItemNames,
   defaultItemCategories,
-  defaultResourceCategories,
 } from "../src/db/default-data.ts";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
@@ -52,17 +51,6 @@ try {
         ),
       );
     });
-  }
-  if (
-    client.prepare("SELECT id FROM resource_categories LIMIT 1").get() ===
-    undefined
-  ) {
-    const insertCategory = client.prepare(
-      "INSERT INTO resource_categories (name, sort_order) VALUES (?, ?)",
-    );
-    defaultResourceCategories.forEach((name, order) =>
-      insertCategory.run(name, order),
-    );
   }
   client.exec("COMMIT");
 } catch (error) {
