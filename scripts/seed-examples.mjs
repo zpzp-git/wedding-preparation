@@ -40,7 +40,7 @@ if (
   settings.wedding_date ||
   settings.venue ||
   settings.budget_cents ||
-  photography.mode !== "fixed" ||
+  photography.mode !== "options" ||
   photography.status !== "not_started" ||
   photography.selected_option_id
 ) {

@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
 
+import { defaultComparisonItemNames } from "@/db/default-data";
+
 vi.mock("server-only", () => ({}));
 
 const directory = mkdtempSync(join(tmpdir(), "wedding-workflow-"));
@@ -29,8 +31,17 @@ describe("本地备婚流程", () => {
     expect(initial.categories.some((entry) => entry.name === "其他服务")).toBe(
       false,
     );
-    expect(initial.items).toHaveLength(16);
-    expect(initial.items.filter((item) => item.isDefault)).toHaveLength(16);
+    expect(initial.items).toHaveLength(17);
+    expect(initial.items.filter((item) => item.isDefault)).toHaveLength(17);
+    expect(
+      initial.items
+        .filter(
+          (item) =>
+            item.categoryId ===
+            initial.categories.find((entry) => entry.name === "婚宴酒店")!.id,
+        )
+        .map((item) => item.name),
+    ).toEqual(["场地及婚宴餐饮", "宾客住宿"]);
     expect(
       initial.items
         .filter(
@@ -40,6 +51,11 @@ describe("本地备婚流程", () => {
         )
         .map((item) => item.name),
     ).toEqual(["主持人", "新娘跟妆", "婚礼摄影", "婚礼摄像"]);
+    expect(
+      initial.items
+        .filter((item) => defaultComparisonItemNames.includes(item.name))
+        .map((item) => item.mode),
+    ).toEqual(defaultComparisonItemNames.map(() => "options"));
 
     const defaultCategory = initial.categories[0]!;
     const defaultItem = initial.items[0]!;

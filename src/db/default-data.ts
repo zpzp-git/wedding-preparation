@@ -1,5 +1,5 @@
 export const defaultItemCategories = [
-  ["婚宴酒店", "场地及婚宴餐饮"],
+  ["婚宴酒店", "场地及婚宴餐饮", "宾客住宿"],
   ["婚庆策划", "策划与现场布置"],
   ["四大金刚", "主持人", "新娘跟妆", "婚礼摄影", "婚礼摄像"],
   ["婚纱礼服", "新娘礼服", "新郎礼服"],
@@ -11,6 +11,20 @@ export const defaultItemCategories = [
   ["婚礼用品", "礼俗与现场用品"],
   ["婚房布置", "婚房布置"],
 ] as const;
+
+export const defaultComparisonItemNames: readonly string[] = [
+  "场地及婚宴餐饮",
+  "宾客住宿",
+  "策划与现场布置",
+  "主持人",
+  "新娘跟妆",
+  "婚礼摄影",
+  "婚礼摄像",
+  "新娘礼服",
+  "新郎礼服",
+  "婚纱照拍摄套餐",
+  "酒水饮料",
+];
 
 export const defaultResourceCategories = [
   "婚宴酒店",

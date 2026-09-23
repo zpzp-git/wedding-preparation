@@ -6,6 +6,7 @@ import { drizzle } from "drizzle-orm/node-sqlite";
 import { migrate } from "drizzle-orm/node-sqlite/migrator";
 
 import {
+  defaultComparisonItemNames,
   defaultItemCategories,
   defaultResourceCategories,
 } from "../src/db/default-data.ts";
@@ -36,14 +37,19 @@ try {
       "INSERT INTO item_categories (name, is_default, sort_order) VALUES (?, 1, ?)",
     );
     const insertItem = client.prepare(
-      "INSERT INTO items (category_id, name, is_default, sort_order) VALUES (?, ?, 1, ?)",
+      "INSERT INTO items (category_id, name, mode, is_default, sort_order) VALUES (?, ?, ?, 1, ?)",
     );
     defaultItemCategories.forEach(([categoryName, ...names], categoryOrder) => {
       const categoryId = Number(
         insertCategory.run(categoryName, categoryOrder).lastInsertRowid,
       );
       names.forEach((name, sortOrder) =>
-        insertItem.run(categoryId, name, sortOrder),
+        insertItem.run(
+          categoryId,
+          name,
+          defaultComparisonItemNames.includes(name) ? "options" : "fixed",
+          sortOrder,
+        ),
       );
     });
   }

@@ -1,13 +1,16 @@
 "use client";
 
+import { Select } from "@base-ui/react/select";
 import {
   BedDouble,
   Check,
   CircleCheckBig,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Download,
   HandCoins,
+  Minus,
   Pencil,
   Plus,
   RotateCcw,
@@ -17,7 +20,7 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { deleteGuest, deleteGuests, saveGuest } from "@/actions/workspace";
 import { GuestImport } from "@/components/guests/guest-import";
@@ -46,13 +49,150 @@ const yuanFormatter = new Intl.NumberFormat("zh-CN", {
   maximumFractionDigits: 2,
 });
 
-const filterShell =
-  "border-border bg-background/75 text-muted-foreground flex h-10 items-center gap-2 rounded-full border px-3 text-xs transition-colors focus-within:border-primary";
-const filterSelect =
-  "text-foreground min-w-0 bg-transparent text-sm outline-none";
 const formField = "text-foreground grid gap-2 text-sm font-medium";
 const formInput =
   "border-border bg-muted/25 focus:border-primary focus:ring-primary/10 w-full rounded-2xl border px-4 py-3 text-sm font-normal outline-none transition focus:ring-4";
+const FILTER_ALL_VALUE = "__all__";
+
+type FilterSelectProps = {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+  options: ReadonlyArray<{ label: string; value: string }>;
+  className?: string;
+};
+
+function FilterSelect({
+  label,
+  value,
+  onChange,
+  ariaLabel,
+  options,
+  className = "",
+}: FilterSelectProps) {
+  const active = value !== "";
+  const selectOptions = options.map((option) => ({
+    ...option,
+    value: option.value === "" ? FILTER_ALL_VALUE : option.value,
+  }));
+
+  return (
+    <Select.Root
+      items={selectOptions}
+      value={value || FILTER_ALL_VALUE}
+      onValueChange={(nextValue) =>
+        onChange(nextValue === FILTER_ALL_VALUE ? "" : (nextValue ?? ""))
+      }
+    >
+      <Select.Trigger
+        aria-label={ariaLabel}
+        className={`group hover:border-primary/35 focus-visible:border-primary/55 focus-visible:ring-primary/10 data-popup-open:border-primary/45 relative flex h-10 min-w-28 cursor-pointer items-center rounded-xl border bg-white text-left shadow-[0_1px_2px_rgba(54,45,72,0.04)] transition-all duration-200 outline-none hover:-translate-y-px hover:shadow-[0_5px_14px_rgba(93,72,114,0.08)] focus-visible:ring-4 ${
+          active ? "border-primary/35 bg-primary/[0.055]" : "border-border/80"
+        } ${className}`}
+      >
+        <span
+          className={`pointer-events-none ml-3 shrink-0 border-r pr-2.5 text-[11px] leading-none font-medium tracking-[0.04em] ${
+            active
+              ? "border-primary/20 text-primary"
+              : "border-border text-muted-foreground"
+          }`}
+        >
+          {label}
+        </span>
+        <Select.Value className="text-foreground min-w-0 flex-1 truncate py-0 pr-8 pl-2.5 text-sm font-medium" />
+        <Select.Icon className="pointer-events-none absolute right-3">
+          <ChevronDown
+            aria-hidden="true"
+            className={`size-3.5 transition duration-200 group-data-[popup-open]:rotate-180 ${
+              active ? "text-primary" : "text-muted-foreground/70"
+            }`}
+          />
+        </Select.Icon>
+      </Select.Trigger>
+      <Select.Portal>
+        <Select.Positioner
+          className="z-[70] outline-none"
+          sideOffset={7}
+          align="start"
+          alignItemWithTrigger={false}
+        >
+          <Select.Popup className="border-border/80 bg-popover text-popover-foreground max-h-[min(var(--available-height),20rem)] min-w-[var(--anchor-width)] origin-[var(--transform-origin)] overflow-y-auto rounded-2xl border p-1.5 shadow-[0_18px_48px_rgba(72,57,89,0.18),0_4px_12px_rgba(72,57,89,0.08)] transition-[transform,opacity] duration-150 outline-none data-ending-style:scale-[0.97] data-ending-style:opacity-0 data-starting-style:scale-[0.97] data-starting-style:opacity-0">
+            {selectOptions.map((option) => (
+              <Select.Item
+                key={option.value}
+                value={option.value}
+                className="data-highlighted:bg-primary/10 data-selected:text-primary data-highlighted:text-foreground grid cursor-default grid-cols-[1.25rem_1fr] items-center gap-2 rounded-xl px-2.5 py-2 text-sm outline-none select-none data-selected:font-medium"
+              >
+                <Select.ItemIndicator className="text-primary col-start-1 grid size-5 place-items-center">
+                  <span className="bg-primary grid size-4 place-items-center rounded-full text-white shadow-[0_3px_8px_rgba(242,124,141,0.25)]">
+                    <Check className="size-2.5 stroke-[3]" />
+                  </span>
+                </Select.ItemIndicator>
+                <Select.ItemText className="col-start-2 truncate">
+                  {option.label}
+                </Select.ItemText>
+              </Select.Item>
+            ))}
+          </Select.Popup>
+        </Select.Positioner>
+      </Select.Portal>
+    </Select.Root>
+  );
+}
+
+type GuestCheckboxProps = {
+  checked: boolean;
+  indeterminate?: boolean;
+  onChange: (checked: boolean) => void;
+  ariaLabel: string;
+  title?: string;
+};
+
+function GuestCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  ariaLabel,
+  title,
+}: GuestCheckboxProps) {
+  const input = useRef<HTMLInputElement>(null);
+  const selected = checked || indeterminate;
+
+  useEffect(() => {
+    if (input.current) input.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <label
+      className="group hover:bg-primary/[0.08] relative grid size-8 cursor-pointer place-items-center rounded-full transition-colors"
+      title={title}
+    >
+      <input
+        ref={input}
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="peer sr-only"
+        aria-label={ariaLabel}
+      />
+      <span
+        aria-hidden="true"
+        className={`peer-focus-visible:ring-primary/15 grid size-5 place-items-center rounded-[7px] border transition-all duration-200 peer-focus-visible:ring-4 ${
+          selected
+            ? "border-primary bg-primary text-white shadow-[0_4px_10px_rgba(242,124,141,0.28)] group-active:scale-90"
+            : "border-border bg-card group-hover:border-primary/60 group-hover:bg-primary/[0.035] text-transparent shadow-[0_1px_3px_rgba(54,45,72,0.08)]"
+        }`}
+      >
+        {indeterminate ? (
+          <Minus className="size-3.5 stroke-[2.5]" />
+        ) : (
+          <Check className="size-3.5 stroke-[2.5]" />
+        )}
+      </span>
+    </label>
+  );
+}
 
 function giftInput(cents: number) {
   return cents % 100 === 0 ? String(cents / 100) : (cents / 100).toFixed(2);
@@ -101,6 +241,16 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
   const allPageSelected =
     pageGuests.length > 0 &&
     pageGuests.every((guest) => selected.has(guest.id));
+  const somePageSelected = pageGuests.some((guest) => selected.has(guest.id));
+  const hasActiveFilters = Boolean(
+    query ||
+    side ||
+    relation ||
+    status ||
+    giftAmount ||
+    giftSettled ||
+    accommodation,
+  );
 
   const resetSelectionAndPage = () => {
     setSelected(new Set());
@@ -194,13 +344,15 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
         ))}
       </section>
       <section className="bg-card border-border/70 overflow-hidden rounded-[30px] border">
-        <div className="bg-muted/20 flex flex-wrap items-center gap-2.5 border-b p-4 sm:px-6">
-          <span className="text-muted-foreground mr-1 flex items-center gap-1.5 text-xs font-medium">
-            <SlidersHorizontal className="size-4" />
+        <div className="from-primary/[0.045] via-card to-secondary/25 flex flex-wrap items-center gap-2.5 border-b bg-linear-to-r p-4 sm:px-6">
+          <span className="text-foreground mr-1 flex h-10 shrink-0 items-center gap-2 text-xs font-medium">
+            <i className="bg-primary/10 text-primary grid size-8 place-items-center rounded-xl not-italic">
+              <SlidersHorizontal className="size-3.5" />
+            </i>
             筛选
           </span>
-          <label className={`${filterShell} min-w-[210px] flex-1 sm:max-w-xs`}>
-            <Search className="text-muted-foreground size-4" />
+          <label className="border-border/80 bg-card focus-within:border-primary/55 focus-within:ring-primary/10 hover:border-primary/35 flex h-10 min-w-[220px] flex-1 items-center gap-2.5 rounded-xl border px-3.5 shadow-[0_1px_2px_rgba(54,45,72,0.04)] transition-all duration-200 focus-within:ring-4 sm:max-w-xs">
+            <Search className="text-muted-foreground size-4 shrink-0" />
             <input
               value={query}
               onChange={(event) => {
@@ -211,112 +363,98 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
               className="text-foreground min-w-0 flex-1 bg-transparent text-sm outline-none"
             />
           </label>
-          <label className={filterShell}>
-            <span>归属</span>
-            <select
-              value={side}
-              onChange={(event) => {
-                setSide(event.target.value);
-                resetSelectionAndPage();
-              }}
-              className={filterSelect}
-              aria-label="按归属筛选"
-            >
-              <option value="">全部</option>
-              <option value="groom">男方</option>
-              <option value="bride">女方</option>
-            </select>
-          </label>
-          <label className={filterShell}>
-            <span>关系</span>
-            <select
-              value={relation}
-              onChange={(event) => {
-                setRelation(event.target.value);
-                resetSelectionAndPage();
-              }}
-              className={`${filterSelect} max-w-24`}
-              aria-label="按关系筛选"
-            >
-              <option value="">全部</option>
-              <option value={EMPTY_RELATION}>未填写</option>
-              {relationships.map((value) => (
-                <option key={value} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={filterShell}>
-            <span>状态</span>
-            <select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                resetSelectionAndPage();
-              }}
-              className={filterSelect}
-              aria-label="按确认状态筛选"
-            >
-              <option value="">全部</option>
-              <option value="confirmed">已确认</option>
-              <option value="pending">待确认</option>
-            </select>
-          </label>
-          <label className={filterShell}>
-            <span>礼金</span>
-            <select
-              value={giftAmount}
-              onChange={(event) => {
-                setGiftAmount(event.target.value);
-                resetSelectionAndPage();
-              }}
-              className={filterSelect}
-              aria-label="按礼金筛选"
-            >
-              <option value="">全部</option>
-              {giftAmounts.map((amount) => (
-                <option key={amount} value={String(amount)}>
-                  {yuanFormatter.format(amount / 100)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className={filterShell}>
-            <span>礼清</span>
-            <select
-              value={giftSettled}
-              onChange={(event) => {
-                setGiftSettled(event.target.value);
-                resetSelectionAndPage();
-              }}
-              className={filterSelect}
-              aria-label="按礼清状态筛选"
-            >
-              <option value="">全部</option>
-              <option value="yes">已礼清</option>
-              <option value="no">未礼清</option>
-            </select>
-          </label>
-          <label className={filterShell}>
-            <span>住宿</span>
-            <select
-              value={accommodation}
-              onChange={(event) => {
-                setAccommodation(event.target.value);
-                resetSelectionAndPage();
-              }}
-              className={filterSelect}
-              aria-label="按住宿需求筛选"
-            >
-              <option value="">全部</option>
-              <option value="yes">需要</option>
-              <option value="no">不需要</option>
-            </select>
-          </label>
+          <FilterSelect
+            label="归属"
+            value={side}
+            onChange={(value) => {
+              setSide(value);
+              resetSelectionAndPage();
+            }}
+            ariaLabel="按归属筛选"
+            options={[
+              { label: "全部", value: "" },
+              { label: "男方", value: "groom" },
+              { label: "女方", value: "bride" },
+            ]}
+          />
+          <FilterSelect
+            label="关系"
+            value={relation}
+            onChange={(value) => {
+              setRelation(value);
+              resetSelectionAndPage();
+            }}
+            ariaLabel="按关系筛选"
+            className="min-w-32"
+            options={[
+              { label: "全部", value: "" },
+              { label: "未填写", value: EMPTY_RELATION },
+              ...relationships.map((value) => ({ label: value, value })),
+            ]}
+          />
+          <FilterSelect
+            label="状态"
+            value={status}
+            onChange={(value) => {
+              setStatus(value);
+              resetSelectionAndPage();
+            }}
+            ariaLabel="按确认状态筛选"
+            options={[
+              { label: "全部", value: "" },
+              { label: "已确认", value: "confirmed" },
+              { label: "待确认", value: "pending" },
+            ]}
+          />
+          <FilterSelect
+            label="礼金"
+            value={giftAmount}
+            onChange={(value) => {
+              setGiftAmount(value);
+              resetSelectionAndPage();
+            }}
+            ariaLabel="按礼金筛选"
+            className="min-w-36"
+            options={[
+              { label: "全部", value: "" },
+              ...giftAmounts.map((amount) => ({
+                label: yuanFormatter.format(amount / 100),
+                value: String(amount),
+              })),
+            ]}
+          />
+          <FilterSelect
+            label="礼清"
+            value={giftSettled}
+            onChange={(value) => {
+              setGiftSettled(value);
+              resetSelectionAndPage();
+            }}
+            ariaLabel="按礼清状态筛选"
+            options={[
+              { label: "全部", value: "" },
+              { label: "已礼清", value: "yes" },
+              { label: "未礼清", value: "no" },
+            ]}
+          />
+          <FilterSelect
+            label="住宿"
+            value={accommodation}
+            onChange={(value) => {
+              setAccommodation(value);
+              resetSelectionAndPage();
+            }}
+            ariaLabel="按住宿需求筛选"
+            options={[
+              { label: "全部", value: "" },
+              { label: "需要", value: "yes" },
+              { label: "不需要", value: "no" },
+            ]}
+          />
           <Button
             variant="ghost"
-            className="h-10"
+            className="h-10 px-3"
+            disabled={!hasActiveFilters}
             onClick={() => {
               setQuery("");
               setSide("");
@@ -365,21 +503,20 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
         )}
         <div className="overflow-x-auto">
           <div className="text-muted-foreground grid min-w-[1240px] grid-cols-[.25fr_1.3fr_.55fr_.8fr_.4fr_.7fr_.8fr_.7fr_.75fr_1fr_1fr] gap-3 border-b px-6 py-3 text-xs font-medium">
-            <label className="grid place-items-center" title="选择当前页">
-              <input
-                type="checkbox"
-                checked={allPageSelected}
-                onChange={(event) => {
-                  const next = new Set(selected);
-                  pageGuests.forEach((guest) => {
-                    if (event.target.checked) next.add(guest.id);
-                    else next.delete(guest.id);
-                  });
-                  setSelected(next);
-                }}
-                aria-label="选择当前页"
-              />
-            </label>
+            <GuestCheckbox
+              checked={allPageSelected}
+              indeterminate={somePageSelected && !allPageSelected}
+              onChange={(checked) => {
+                const next = new Set(selected);
+                pageGuests.forEach((guest) => {
+                  if (checked) next.add(guest.id);
+                  else next.delete(guest.id);
+                });
+                setSelected(next);
+              }}
+              ariaLabel="选择当前页"
+              title="选择当前页"
+            />
             <span>宾客</span>
             <span>归属</span>
             <span>关系</span>
@@ -396,19 +533,16 @@ export function GuestWorkspace({ data }: { data: GuestData }) {
               key={guest.id}
               className="hover:bg-muted/35 grid min-w-[1240px] grid-cols-[.25fr_1.3fr_.55fr_.8fr_.4fr_.7fr_.8fr_.7fr_.75fr_1fr_1fr] items-center gap-3 border-b px-6 py-4 text-sm last:border-0"
             >
-              <label className="grid place-items-center">
-                <input
-                  type="checkbox"
-                  checked={selected.has(guest.id)}
-                  onChange={(event) => {
-                    const next = new Set(selected);
-                    if (event.target.checked) next.add(guest.id);
-                    else next.delete(guest.id);
-                    setSelected(next);
-                  }}
-                  aria-label={`选择${guest.name}`}
-                />
-              </label>
+              <GuestCheckbox
+                checked={selected.has(guest.id)}
+                onChange={(checked) => {
+                  const next = new Set(selected);
+                  if (checked) next.add(guest.id);
+                  else next.delete(guest.id);
+                  setSelected(next);
+                }}
+                ariaLabel={`选择${guest.name}`}
+              />
               <span className="flex items-center gap-2">
                 <i className="bg-secondary text-secondary-foreground grid size-8 place-items-center rounded-full not-italic">
                   <UsersRound className="size-3.5" />
